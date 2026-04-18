@@ -5,6 +5,7 @@ import AdmZip from 'adm-zip';
 import { describe, expect, test, vi } from 'vitest';
 
 import { convertBook, inspectBook, processHtmlFiles, resolveZipEntryPath, createEpubBuffer } from '../src';
+import { DEFAULT_DICTIONARY_PATH } from '../src/config/defaults';
 import { createMinimalEpub } from './helpers/epubTestUtils';
 
 async function makeTempDir(prefix: string): Promise<string> {
@@ -14,6 +15,10 @@ async function makeTempDir(prefix: string): Promise<string> {
 const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+lmVsAAAAASUVORK5CYII=';
 
 describe('converter parity', () => {
+  test('default dictionary path resolves to an existing file', async () => {
+    expect(await fs.pathExists(DEFAULT_DICTIONARY_PATH)).toBe(true);
+  });
+
   test('resolveZipEntryPath rejects zip-slip style archive entries', async () => {
     const tempDir = await makeTempDir('dyslibria-zip-slip-');
     const outputPath = path.join(tempDir, 'extracted');

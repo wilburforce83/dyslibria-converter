@@ -1,6 +1,6 @@
 {
   "name": "dyslibria-converter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Canonical EPUB-to-Dyslibria conversion engine with CLI and Node.js API.",
   "license": "ISC",
   "author": "wilburforce83",
