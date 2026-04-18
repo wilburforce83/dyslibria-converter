@@ -1,0 +1,19 @@
+{
+  "books": [
+    {
+      "file": "example-long-novel.epub",
+      "tags": ["long-form", "front-matter", "table-of-contents"],
+      "notes": "Use one book that stresses long multi-chapter narrative flow."
+    },
+    {
+      "file": "example-image-heavy-book.epub",
+      "tags": ["cover", "images", "layout"],
+      "notes": "Use one illustrated book to catch cover or asset regressions."
+    },
+    {
+      "file": "example-unicode-rich-book.epub",
+      "tags": ["unicode", "entities", "non-ascii"],
+      "notes": "Use one book with accents or translated text to catch XML/entity bugs."
+    }
+  ]
+}

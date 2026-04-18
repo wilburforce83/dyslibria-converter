@@ -1,11 +1,33 @@
 {
   "name": "dyslibria-converter",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Canonical EPUB-to-Dyslibria conversion engine with CLI and Node.js API.",
   "license": "ISC",
   "author": "wilburforce83",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wilburforce83/dyslibria-converter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wilburforce83/dyslibria-converter/issues"
+  },
+  "homepage": "https://github.com/wilburforce83/dyslibria-converter#readme",
+  "keywords": [
+    "epub",
+    "converter",
+    "dyslexia",
+    "bionic-reading",
+    "cli",
+    "node"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js"
+    }
+  },
   "bin": {
     "dyslibria-convert": "dist/cli/index.js"
   },
@@ -19,6 +41,10 @@
   "scripts": {
     "build": "tsup src/index.ts src/cli/index.ts --format cjs --dts --clean --outDir dist && node scripts/copy-assets.mjs",
     "dev": "tsx src/cli/index.ts",
+    "qa:pack": "npm pack --dry-run",
+    "qa:real-world": "node scripts/run-real-world-regression.mjs",
+    "release:check": "npm test && npm run build && npm run qa:pack",
+    "prepublishOnly": "npm run release:check",
     "test": "vitest run",
     "test:watch": "vitest"
   },

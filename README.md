@@ -51,6 +51,46 @@ npm test
 npm run build
 ```
 
+## Release Checks
+
+Before publishing a new package version:
+
+```bash
+npm run release:check
+```
+
+That runs:
+
+- unit and parity tests
+- the package build
+- a dry-run tarball check
+
+## Real-World Regression Workflow
+
+For release confidence, keep a trusted local EPUB corpus outside the repository and run the published converter against it before shipping.
+
+Quick batch run:
+
+```bash
+npm run build
+npm run qa:real-world -- \
+  --input-dir /path/to/raw-epubs \
+  --output-dir ./reports/real-world-output \
+  --report ./reports/real-world-regression.json
+```
+
+If you want to exercise only a hand-picked regression subset, create a private manifest using [fixtures/real-world-regression.sample.json](./fixtures/real-world-regression.sample.json) as the shape:
+
+```bash
+npm run qa:real-world -- \
+  --input-dir /path/to/raw-epubs \
+  --manifest ./fixtures/local/release-candidate.json \
+  --output-dir ./reports/regression-output \
+  --report ./reports/regression-report.json
+```
+
+Use [fixtures/real-world-notes.md](./fixtures/real-world-notes.md) to record which books you manually opened and what they are good at catching.
+
 ## Notes
 
 - The current package targets Node.js first.
