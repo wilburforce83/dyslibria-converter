@@ -25,6 +25,14 @@ export async function createMinimalEpub(
     chapterMarkup?: string;
     coverFileName?: string;
     coverImageBase64?: string;
+    assets?: Array<{
+      fileName: string;
+      mediaType?: string;
+      id?: string;
+      properties?: string;
+      contentBase64?: string;
+      contentBuffer?: Buffer;
+    }>;
   } = {}
 ): Promise<string> {
   const {
@@ -34,7 +42,8 @@ export async function createMinimalEpub(
     chapterFileName = 'chapter1.xhtml',
     chapterMarkup,
     coverFileName,
-    coverImageBase64
+    coverImageBase64,
+    assets = []
   } = options;
 
   await fs.ensureDir(path.dirname(outputPath));
@@ -61,6 +70,12 @@ export async function createMinimalEpub(
       `<item id="cover-image" href="${coverFileName}" media-type="${getMediaTypeFromFilename(coverFileName)}" properties="cover-image"/>`
     );
     metadataExtras.push('<meta name="cover" content="cover-image"/>');
+  }
+
+  for (const [index, asset] of assets.entries()) {
+    manifestItems.push(
+      `<item id="${asset.id || `asset-${index + 1}`}" href="${asset.fileName}" media-type="${asset.mediaType || getMediaTypeFromFilename(asset.fileName)}"${asset.properties ? ` properties="${asset.properties}"` : ''}/>`
+    );
   }
 
   zip.file(
@@ -98,6 +113,11 @@ export async function createMinimalEpub(
 
   if (coverFileName && coverImageBase64) {
     zip.file(`OEBPS/${coverFileName}`, Buffer.from(coverImageBase64, 'base64'));
+  }
+
+  for (const asset of assets) {
+    const contentBuffer = asset.contentBuffer || Buffer.from(asset.contentBase64 || '', 'base64');
+    zip.file(`OEBPS/${asset.fileName}`, contentBuffer);
   }
 
   const buffer = await zip.generateAsync({

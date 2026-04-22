@@ -7,8 +7,15 @@ import { materializeInput } from './input';
 import { inspectBookFromPath } from './inspect-book';
 import { extractResources } from './archive';
 import { processHtmlFiles } from '../transforms/html';
+import { optimizeEpubImages } from '../transforms/images';
 import { createEpubBuffer } from '../output/epub-writer';
-import type { ConversionInput, ConversionResult, ConvertBookOptions, ConversionLogEvent } from '../types/api';
+import type {
+  ConversionInput,
+  ConversionResult,
+  ConvertBookOptions,
+  ConversionLogEvent,
+  ImageOptimizationStats
+} from '../types/api';
 import { ConversionStepError, NoContentFilesError } from '../types/errors';
 
 function logEvent(logger: ConvertBookOptions['logger'], event: ConversionLogEvent): void {
@@ -46,6 +53,33 @@ export async function convertBook(input: ConversionInput, options: ConvertBookOp
       maxArchiveEntries: normalizedOptions.maxArchiveEntries,
       maxExtractBytes: normalizedOptions.maxExtractBytes
     });
+
+    let imageOptimizationStats: ImageOptimizationStats | undefined;
+    if (normalizedOptions.optimizeImages.enabled) {
+      logEvent(normalizedOptions.logger, {
+        level: 'info',
+        step: 'transform',
+        message: 'Optimizing embedded EPUB images'
+      });
+
+      imageOptimizationStats = await optimizeEpubImages({
+        resourcesPath: workspace.extractedDir,
+        options: normalizedOptions.optimizeImages,
+        inspection,
+        logger: normalizedOptions.logger
+      });
+
+      logEvent(normalizedOptions.logger, {
+        level: 'info',
+        step: 'transform',
+        message: 'Image optimization complete',
+        details: {
+          processedImages: imageOptimizationStats.processedImages,
+          optimizedImages: imageOptimizationStats.optimizedImages,
+          bytesSaved: imageOptimizationStats.bytesSaved
+        }
+      });
+    }
 
     const dictionary = normalizedOptions.dictionary
       ? new Set(normalizedOptions.dictionary)
@@ -105,7 +139,8 @@ export async function convertBook(input: ConversionInput, options: ConvertBookOp
         skippedFiles: processingResult.skippedFiles,
         durationMs: Date.now() - startedAt,
         inputBytes: materializedInput.inputBytes,
-        outputBytes: outputBuffer.length
+        outputBytes: outputBuffer.length,
+        imageOptimization: imageOptimizationStats
       },
       outputPath: finalOutputPath,
       outputBuffer: normalizedOptions.returnBuffer ? outputBuffer : undefined

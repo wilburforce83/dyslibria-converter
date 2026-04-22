@@ -4,7 +4,7 @@ import { runInspectCommand } from './commands/inspect';
 
 function printUsage(): void {
   console.log(`Usage:
-  dyslibria-convert convert <input.epub> [--output <output.epub>]
+  dyslibria-convert convert <input.epub> [--output <output.epub>] [--optimize-images]
   dyslibria-convert inspect <input.epub>`);
 }
 
@@ -17,20 +17,45 @@ async function main(): Promise<void> {
   }
 
   if (command === 'convert') {
-    const inputPath = rest[0];
+    let inputPath: string | undefined;
+    let outputPath: string | undefined;
+    let optimizeImages = false;
+
+    for (let index = 0; index < rest.length; index += 1) {
+      const argument = rest[index];
+
+      if (argument === '--output' || argument === '-o') {
+        outputPath = rest[index + 1];
+        if (!outputPath) {
+          throw new Error('An output EPUB path is required after --output.');
+        }
+
+        index += 1;
+        continue;
+      }
+
+      if (argument === '--optimize-images') {
+        optimizeImages = true;
+        continue;
+      }
+
+      if (argument.startsWith('-')) {
+        throw new Error(`Unknown option: ${argument}`);
+      }
+
+      if (!inputPath) {
+        inputPath = argument;
+        continue;
+      }
+
+      throw new Error(`Unexpected argument: ${argument}`);
+    }
+
     if (!inputPath) {
       throw new Error('An input EPUB path is required.');
     }
 
-    let outputPath: string | undefined;
-    for (let index = 1; index < rest.length; index += 1) {
-      if (rest[index] === '--output' || rest[index] === '-o') {
-        outputPath = rest[index + 1];
-        index += 1;
-      }
-    }
-
-    await runConvertCommand({ inputPath, outputPath });
+    await runConvertCommand({ inputPath, outputPath, optimizeImages });
     return;
   }
 

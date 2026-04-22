@@ -4,6 +4,7 @@ import { convertBook } from '../../core/convert-book';
 interface ConvertCommandOptions {
   inputPath: string;
   outputPath?: string;
+  optimizeImages?: boolean;
 }
 
 export async function runConvertCommand(options: ConvertCommandOptions): Promise<void> {
@@ -11,6 +12,7 @@ export async function runConvertCommand(options: ConvertCommandOptions): Promise
 
   const result = await convertBook(options.inputPath, {
     outputPath,
+    optimizeImages: options.optimizeImages,
     returnBuffer: false,
     logger: (event) => {
       if (event.level !== 'debug') {
@@ -22,6 +24,11 @@ export async function runConvertCommand(options: ConvertCommandOptions): Promise
   console.log(`Converted ${result.inspection.filename}`);
   console.log(`Output: ${outputPath}`);
   console.log(`Processed files: ${result.stats.processedFiles}`);
+
+  if (result.stats.imageOptimization) {
+    console.log(`Optimized images: ${result.stats.imageOptimization.optimizedImages}/${result.stats.imageOptimization.processedImages}`);
+    console.log(`Image bytes saved: ${result.stats.imageOptimization.bytesSaved}`);
+  }
 }
 
 function defaultOutputPath(inputPath: string): string {
