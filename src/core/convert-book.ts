@@ -1,7 +1,6 @@
 import path from 'node:path';
 import fs from 'fs-extra';
 import { normalizeConvertBookOptions } from '../config/schema';
-import { loadDictionary } from './dictionary';
 import { createWorkspace, cleanupWorkspace } from './workspace';
 import { materializeInput } from './input';
 import { inspectBookFromPath } from './inspect-book';
@@ -81,16 +80,16 @@ export async function convertBook(input: ConversionInput, options: ConvertBookOp
       });
     }
 
-    const dictionary = normalizedOptions.dictionary
-      ? new Set(normalizedOptions.dictionary)
-      : await loadDictionary(normalizedOptions.dictionaryPath);
-
     logEvent(normalizedOptions.logger, {
       level: 'info',
       step: 'transform',
       message: 'Applying Dyslibria text transformation'
     });
-    const processingResult = await processHtmlFiles(workspace.extractedDir, dictionary);
+    const processingResult = await processHtmlFiles(workspace.extractedDir, {
+      profile: normalizedOptions.profile,
+      profilePath: normalizedOptions.profilePath,
+      logger: normalizedOptions.logger
+    });
 
     if (processingResult.errors.length > 0) {
       const firstError = processingResult.errors[0];
@@ -142,6 +141,7 @@ export async function convertBook(input: ConversionInput, options: ConvertBookOp
         outputBytes: outputBuffer.length,
         imageOptimization: imageOptimizationStats
       },
+      processingMetrics: processingResult.metricsReport,
       outputPath: finalOutputPath,
       outputBuffer: normalizedOptions.returnBuffer ? outputBuffer : undefined
     };

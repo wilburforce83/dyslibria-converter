@@ -4,6 +4,18 @@ Canonical EPUB-to-Dyslibria conversion engine for Node.js.
 
 This repository is the long-term home of the Dyslibria conversion pipeline, extracted from the self-hosted library app without bringing along reader, auth, billing, or UI concerns. The goal of the initial `0.x` series is behavior parity with the current self-hosted converter, backed by a growing golden-fixture suite.
 
+## Breaking Change In 1.0.0
+
+`1.0.0` is a breaking release.
+
+Key upgrade notes:
+
+- image optimization is now enabled by default unless you explicitly pass `optimizeImages: false` or `--no-optimize-images`
+- the converter now accepts Dyslibria lab profile JSON and full reader-configuration wrappers, which expands the public API surface
+- conversion results now expose richer `processingMetrics`, so consumers that assumed the older narrower result shape should review their integrations before upgrading
+
+If you are upgrading from `0.x`, test your conversion output and CLI automation before rolling this version out broadly.
+
 ## Current scope
 
 - safe EPUB archive validation and extraction
@@ -28,12 +40,13 @@ import { convertBook, inspectBook } from 'dyslibria-converter';
 
 const result = await convertBook('/path/to/book.epub', {
   outputPath: '/path/to/book-dyslibria.epub',
-  optimizeImages: true
+  profilePath: './reader-config.json'
 });
 
 console.log(result.outputPath);
 console.log(result.stats.processedFiles);
 console.log(result.stats.imageOptimization?.bytesSaved);
+console.log(result.processingMetrics.files[0]?.metrics);
 
 const inspection = await inspectBook('/path/to/book.epub');
 console.log(inspection.title, inspection.author);
@@ -43,19 +56,66 @@ console.log(inspection.title, inspection.author);
 
 ```bash
 npx dyslibria-convert convert ./input.epub --output ./output.epub
-npx dyslibria-convert convert ./input.epub --output ./output.epub --optimize-images
+npx dyslibria-convert convert ./input.epub --output ./output.epub --profile ./reader-config.json
+npx dyslibria-convert convert ./input.epub --output ./output.epub --metrics-output ./book-metrics.json
+npx dyslibria-convert convert ./input.epub --output ./output.epub --no-optimize-images
 npx dyslibria-convert inspect ./input.epub
 ```
 
+## Profiles And Reader Configurations
+
+The converter now accepts the same portable Dyslibria profile JSON exported by the lab, or the full reader-configuration wrapper described in the lab docs.
+
+API:
+
+```ts
+await convertBook('/path/to/book.epub', {
+  profile: {
+    emphasisDensity: 0.2,
+    outputCompatibilityMode: 'standardEpub'
+  }
+});
+```
+
+Or point at a JSON file:
+
+```ts
+await convertBook('/path/to/book.epub', {
+  profilePath: './reader-config.json'
+});
+```
+
+The nested `profile` object remains the converter-facing source of truth when you pass the reader wrapper.
+
+## Processing Metrics
+
+Each conversion now returns a full per-file processing report in `result.processingMetrics`.
+
+That JSON includes:
+
+- the resolved profile source and normalized profile used
+- per-content-file metrics, warnings, debug data, and compatibility mode
+- aggregate book totals such as total words, anchors, spans, and language counts
+
+This is designed to mirror the lab-style processing metrics closely enough for downstream analysis and regression reporting.
+
 ## Image Optimization
 
-Image optimization is opt-in and applies to EPUB inputs only. It is designed for ebook reading, not archival reproduction.
+Image optimization is enabled by default for EPUB inputs. It is designed for ebook reading, not archival reproduction.
 
-Enable the default profile in the API:
+Use the default ebook profile in the API:
 
 ```ts
 await convertBook('/path/to/book.epub', {
   optimizeImages: true
+});
+```
+
+Disable it:
+
+```ts
+await convertBook('/path/to/book.epub', {
+  optimizeImages: false
 });
 ```
 

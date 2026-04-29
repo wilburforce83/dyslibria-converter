@@ -1,10 +1,13 @@
 import path from 'node:path';
+import fs from 'fs-extra';
 import { convertBook } from '../../core/convert-book';
 
 interface ConvertCommandOptions {
   inputPath: string;
   outputPath?: string;
   optimizeImages?: boolean;
+  profilePath?: string;
+  metricsOutputPath?: string;
 }
 
 export async function runConvertCommand(options: ConvertCommandOptions): Promise<void> {
@@ -13,6 +16,7 @@ export async function runConvertCommand(options: ConvertCommandOptions): Promise
   const result = await convertBook(options.inputPath, {
     outputPath,
     optimizeImages: options.optimizeImages,
+    profilePath: options.profilePath,
     returnBuffer: false,
     logger: (event) => {
       if (event.level !== 'debug') {
@@ -24,10 +28,18 @@ export async function runConvertCommand(options: ConvertCommandOptions): Promise
   console.log(`Converted ${result.inspection.filename}`);
   console.log(`Output: ${outputPath}`);
   console.log(`Processed files: ${result.stats.processedFiles}`);
+  console.log(`Words processed: ${result.processingMetrics.totals.totalWords}`);
+  console.log(`Anchors planned: ${result.processingMetrics.totals.anchorCount}`);
 
   if (result.stats.imageOptimization) {
     console.log(`Optimized images: ${result.stats.imageOptimization.optimizedImages}/${result.stats.imageOptimization.processedImages}`);
     console.log(`Image bytes saved: ${result.stats.imageOptimization.bytesSaved}`);
+  }
+
+  if (options.metricsOutputPath) {
+    await fs.ensureDir(path.dirname(options.metricsOutputPath));
+    await fs.writeJson(options.metricsOutputPath, result.processingMetrics, { spaces: 2 });
+    console.log(`Metrics: ${options.metricsOutputPath}`);
   }
 }
 

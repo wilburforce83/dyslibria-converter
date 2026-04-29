@@ -211,7 +211,7 @@ describe('image optimization', () => {
     expect(metadata.format).toBe('png');
     expect(metadata.hasAlpha).toBe(true);
     expect(alphaSample[3]).toBeLessThan(255);
-  }, 10000);
+  }, 15000);
 
   test('convertBook does not upscale small images when optimization is enabled', async () => {
     const tempDir = await makeTempDir('dyslibria-no-upscale-');

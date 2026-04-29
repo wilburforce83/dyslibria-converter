@@ -4,7 +4,7 @@ import { runInspectCommand } from './commands/inspect';
 
 function printUsage(): void {
   console.log(`Usage:
-  dyslibria-convert convert <input.epub> [--output <output.epub>] [--optimize-images]
+  dyslibria-convert convert <input.epub> [--output <output.epub>] [--profile <profile.json>] [--metrics-output <metrics.json>] [--optimize-images|--no-optimize-images]
   dyslibria-convert inspect <input.epub>`);
 }
 
@@ -19,7 +19,9 @@ async function main(): Promise<void> {
   if (command === 'convert') {
     let inputPath: string | undefined;
     let outputPath: string | undefined;
-    let optimizeImages = false;
+    let profilePath: string | undefined;
+    let metricsOutputPath: string | undefined;
+    let optimizeImages: boolean | undefined;
 
     for (let index = 0; index < rest.length; index += 1) {
       const argument = rest[index];
@@ -34,8 +36,33 @@ async function main(): Promise<void> {
         continue;
       }
 
+      if (argument === '--profile') {
+        profilePath = rest[index + 1];
+        if (!profilePath) {
+          throw new Error('A profile JSON path is required after --profile.');
+        }
+
+        index += 1;
+        continue;
+      }
+
+      if (argument === '--metrics-output') {
+        metricsOutputPath = rest[index + 1];
+        if (!metricsOutputPath) {
+          throw new Error('A metrics JSON path is required after --metrics-output.');
+        }
+
+        index += 1;
+        continue;
+      }
+
       if (argument === '--optimize-images') {
         optimizeImages = true;
+        continue;
+      }
+
+      if (argument === '--no-optimize-images') {
+        optimizeImages = false;
         continue;
       }
 
@@ -55,7 +82,13 @@ async function main(): Promise<void> {
       throw new Error('An input EPUB path is required.');
     }
 
-    await runConvertCommand({ inputPath, outputPath, optimizeImages });
+    await runConvertCommand({
+      inputPath,
+      outputPath,
+      optimizeImages,
+      profilePath,
+      metricsOutputPath
+    });
     return;
   }
 

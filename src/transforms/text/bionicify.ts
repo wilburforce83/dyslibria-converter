@@ -1,6 +1,19 @@
 import { XML_ENTITY_TOKEN_PATTERN, escapeXmlTextContent } from './entities';
 import { findLongestValidPrefix } from './tokenise';
 
+export function getBoldLengthForWord(word: string, dictionary: Set<string>): number {
+  const prefixLength = findLongestValidPrefix(word, dictionary);
+  let midpoint = Math.floor(word.length / 2);
+
+  if (midpoint < 1) {
+    midpoint = 1;
+  }
+
+  return prefixLength > 0 && prefixLength >= midpoint && word.length > 1
+    ? prefixLength
+    : midpoint;
+}
+
 function buildProcessedPlainText(text: string, dictionary: Set<string>, shouldBold: boolean): string {
   if (!shouldBold) {
     return escapeXmlTextContent(text);
@@ -19,16 +32,7 @@ function buildProcessedPlainText(text: string, dictionary: Set<string>, shouldBo
       parts.push(escapeXmlTextContent(text.slice(lastIndex, matchIndex)));
     }
 
-    const prefixLength = findLongestValidPrefix(word, dictionary);
-    let midpoint = Math.floor(word.length / 2);
-
-    if (midpoint < 1) {
-      midpoint = 1;
-    }
-
-    const boldLength = prefixLength > 0 && prefixLength >= midpoint && word.length > 1
-      ? prefixLength
-      : midpoint;
+    const boldLength = getBoldLengthForWord(word, dictionary);
 
     parts.push(
       `<b>${escapeXmlTextContent(word.slice(0, boldLength))}</b>${escapeXmlTextContent(word.slice(boldLength))}`

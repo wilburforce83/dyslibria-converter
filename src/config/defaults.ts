@@ -7,6 +7,7 @@ export const DEFAULT_MAX_EXTRACT_BYTES = 300 * 1024 * 1024;
 export const DEFAULT_RETURN_BUFFER = true;
 export const DEFAULT_DETERMINISTIC_OUTPUT = true;
 export const DEFAULT_CLEANUP_TEMP = true;
+export const DEFAULT_OPTIMIZE_IMAGES = true;
 export const DEFAULT_IMAGE_OPTIMIZATION_OPTIONS: Required<ImageOptimizationOptions> = {
   enabled: true,
   maxWidth: 1600,

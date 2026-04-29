@@ -5,9 +5,10 @@ import {
   DEFAULT_IMAGE_OPTIMIZATION_OPTIONS,
   DEFAULT_MAX_ARCHIVE_ENTRIES,
   DEFAULT_MAX_EXTRACT_BYTES,
+  DEFAULT_OPTIMIZE_IMAGES,
   DEFAULT_RETURN_BUFFER
 } from './defaults';
-import type { ConvertBookOptions, ImageOptimizationOptions } from '../types/api';
+import type { ConvertBookOptions, ImageOptimizationOptions, ProfileInput } from '../types/api';
 
 function normalizePositiveInteger(value: number | undefined, fallback: number): number {
   if (!Number.isFinite(value)) {
@@ -48,13 +49,19 @@ export interface NormalizedConvertBookOptions {
   maxArchiveEntries: number;
   maxExtractBytes: number;
   optimizeImages: NormalizedImageOptimizationOptions;
+  profile?: ProfileInput;
+  profilePath?: string;
   logger?: ConvertBookOptions['logger'];
 }
 
 export function normalizeImageOptimizationOptions(
   options: boolean | ImageOptimizationOptions | undefined
 ): NormalizedImageOptimizationOptions {
-  if (!options) {
+  if (options === undefined) {
+    return { ...DEFAULT_IMAGE_OPTIMIZATION_OPTIONS };
+  }
+
+  if (options === false) {
     return {
       ...DEFAULT_IMAGE_OPTIMIZATION_OPTIONS,
       enabled: false
@@ -87,7 +94,11 @@ export function normalizeConvertBookOptions(options: ConvertBookOptions = {}): N
     cleanupTempDirectories: options.cleanupTempDirectories ?? DEFAULT_CLEANUP_TEMP,
     maxArchiveEntries: options.maxArchiveEntries ?? DEFAULT_MAX_ARCHIVE_ENTRIES,
     maxExtractBytes: options.maxExtractBytes ?? DEFAULT_MAX_EXTRACT_BYTES,
-    optimizeImages: normalizeImageOptimizationOptions(options.optimizeImages),
+    optimizeImages: normalizeImageOptimizationOptions(
+      options.optimizeImages ?? DEFAULT_OPTIMIZE_IMAGES
+    ),
+    profile: options.profile,
+    profilePath: options.profilePath,
     logger: options.logger
   };
 }
