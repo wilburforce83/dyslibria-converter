@@ -44,55 +44,6 @@ export const DEFAULT_PROFILES = [
     {},
   ),
   buildProfile(
-    'minimal-intervention',
-    'Minimal intervention',
-    'Near-baseline rendering with accessible spacing and almost no semantic cueing.',
-    {
-      emphasisDensity: 0.06,
-      maxEmphasisPerSentence: 1,
-      maxEmphasisPerParagraph: 0.05,
-      cooldownBetweenAnchors: 2,
-      readingNeeds: {
-        lowVisualNoiseMode: true,
-      },
-      languageAware: {
-        enableClusterHighlighting: false,
-        enableSuffixHighlighting: false,
-        enablePrefixHighlighting: false,
-        enableCompoundSplitting: false,
-        enableSyllableChunking: false,
-        enableStressHighlighting: false,
-        enableSilentPatternMarking: false,
-      },
-      attentionMapping: {
-        maxAnchorsPerSentence: 1,
-        anchorDensity: 0.06,
-        antiClumpingWindow: 4,
-        anchorWordMinimumLength: 5,
-      },
-      flowControl: {
-        cooldownAfterEmphasis: 2,
-        emphasisSmoothing: 0.36,
-      },
-      cognitiveLoad: {
-        emphasisBudgetPerParagraph: 0.05,
-      },
-      structuralAwareness: {
-        sentenceStarts: false,
-        clauseBoundaries: false,
-        punctuationWeight: 0.08,
-        paragraphLeadEmphasis: false,
-      },
-      visual: {
-        letterSpacing: '0.012em',
-        wordSpacing: '0.03em',
-        lineHeight: 1.8,
-        paragraphSpacing: '1.2em',
-        maxLineWidth: '38rem',
-      },
-    },
-  ),
-  buildProfile(
     'dense-text-support',
     'Dense text support',
     'Structure-first support for dense nonfiction with paragraph guidance and sparse anchors.',
@@ -140,20 +91,20 @@ export const DEFAULT_PROFILES = [
     },
   ),
   buildProfile(
-    'technical-reading',
-    'Technical reading support',
-    'Sparse first-mention and terminology-aware cueing for dense technical prose.',
+    'intense-scaffolding',
+    'Intense scaffolding',
+    'Dense-text support with maximum guidance strength, front-loaded scaffolding, and stronger structural cueing.',
     {
-      performanceMode: 'deep',
-      emphasisDensity: 0.12,
-      maxEmphasisPerSentence: 2,
-      maxEmphasisPerParagraph: 0.09,
+      emphasisDensity: 0.26,
+      maxEmphasisPerSentence: 5,
+      maxEmphasisPerParagraph: 0.3,
+      cooldownBetweenAnchors: 1,
       readingNeeds: {
-        technicalReadingSupport: true,
         longTextFatigueSupport: true,
+        lowVisualNoiseMode: true,
       },
       languageAware: {
-        enableClusterHighlighting: true,
+        enableClusterHighlighting: false,
         enableSuffixHighlighting: true,
         enablePrefixHighlighting: false,
         enableCompoundSplitting: true,
@@ -162,32 +113,32 @@ export const DEFAULT_PROFILES = [
         enableSilentPatternMarking: false,
       },
       attentionMapping: {
-        maxAnchorsPerSentence: 2,
-        anchorDensity: 0.12,
+        maxAnchorsPerSentence: 5,
+        anchorDensity: 0.26,
         anchorDistribution: 'front-loaded',
-        antiClumpingWindow: 3,
+        antiClumpingWindow: 2,
         anchorWordMinimumLength: 5,
       },
+      flowControl: {
+        cooldownAfterEmphasis: 1,
+        emphasisSmoothing: 0.3,
+      },
       cognitiveLoad: {
-        emphasisBudgetPerParagraph: 0.09,
+        emphasisBudgetPerParagraph: 0.3,
         longSentenceThreshold: 15,
       },
       structuralAwareness: {
         sentenceStarts: true,
         clauseBoundaries: true,
-        punctuationWeight: 0.24,
+        punctuationWeight: 0.3,
         paragraphLeadEmphasis: true,
       },
-      wordComplexity: {
-        wordLengthWeight: 0.3,
-        uncommonPatternWeight: 0.28,
-        suffixWeight: 0.26,
-        vowelClusterWeight: 0.16,
-      },
       visual: {
+        letterSpacing: '0.012em',
+        wordSpacing: '0.03em',
         lineHeight: 1.8,
         paragraphSpacing: '1.22em',
-        maxLineWidth: '34rem',
+        maxLineWidth: '35rem',
       },
     },
   ),
@@ -281,10 +232,10 @@ export const DEFAULT_PROFILES = [
         emphasisBudgetPerParagraph: 0.06,
       },
       visual: {
-        letterSpacing: '0.03em',
-        wordSpacing: '0.08em',
-        lineHeight: 1.94,
-        paragraphSpacing: '1.36em',
+        letterSpacing: '0.036em',
+        wordSpacing: '0.096em',
+        lineHeight: 2.328,
+        paragraphSpacing: '1.632em',
         maxLineWidth: '31rem',
       },
     },
@@ -395,12 +346,14 @@ export const INTERNAL_PRESET_PROFILES = [
 ];
 
 export const PRESET_ALIASES = {
-  'dyslibria-sparse': 'minimal-intervention',
+  'dyslibria-sparse': 'dyslibria-balanced',
   'dyslibria-deep-parse': 'dense-text-support',
   'dyslibria-dyslexia-spacing': 'dyslexia-spacing',
   'dyslibria-adhd-focus': 'focus-support',
-  'fiction-flow': 'minimal-intervention',
+  'fiction-flow': 'dyslibria-balanced',
   'dyslibria-language-learner': 'dense-text-support',
+  'minimal-intervention': 'dyslibria-balanced',
+  'technical-reading': 'intense-scaffolding',
 };
 
 export { buildProfile, mergeDeep };

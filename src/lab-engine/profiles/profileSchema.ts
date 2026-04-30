@@ -1,5 +1,5 @@
 // @ts-nocheck
-export const PROFILE_VERSION = '2.0.0';
+export const PROFILE_VERSION = '2.1.0';
 
 export const DEFAULT_PROFILE = {
   id: 'dyslibria-balanced',
