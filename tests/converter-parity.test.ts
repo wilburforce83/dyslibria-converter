@@ -272,6 +272,58 @@ describe('converter parity', () => {
     expect(content).not.toContain('.dyslibria-paragraph *');
   });
 
+  test('processHtmlFiles normalizes paragraph whitespace so source hard-wraps do not render as forced line breaks', async () => {
+    const tempDir = await makeTempDir('dyslibria-whitespace-normal-');
+    const filePath = path.join(tempDir, 'hard-wraps.xhtml');
+
+    await fs.writeFile(
+      filePath,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <body>
+    <p>Wrapped source text
+should still reflow naturally inside the reader.</p>
+  </body>
+</html>`
+    );
+
+    await processHtmlFiles(tempDir, new Set());
+    const content = await fs.readFile(filePath, 'utf-8');
+
+    expect(content).toContain('white-space: normal;');
+    expect(content).not.toContain('white-space: pre-wrap;');
+  });
+
+  test('processHtmlFiles neutralizes root page colour and background so reader themes can take over', async () => {
+    const tempDir = await makeTempDir('dyslibria-root-theme-');
+    const filePath = path.join(tempDir, 'themeable.xhtml');
+
+    await fs.writeFile(
+      filePath,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <style>
+      body { background: #ffffff; color: #111111; }
+    </style>
+  </head>
+  <body>
+    <p>Reader themes should be able to recolour this page.</p>
+  </body>
+</html>`
+    );
+
+    await processHtmlFiles(tempDir, {
+      profile: {
+        emphasisDensity: 0.2
+      }
+    });
+    const content = await fs.readFile(filePath, 'utf-8');
+
+    expect(content).toMatch(/<html[^>]*style="[^"]*color: inherit !important;[^"]*background: transparent !important;[^"]*background-color: transparent !important[^"]*"/);
+    expect(content).toMatch(/<body[^>]*style="[^"]*color: inherit !important;[^"]*background: transparent !important;[^"]*background-color: transparent !important[^"]*"/);
+  });
+
   test('processHtmlFiles accepts a reader configuration file and reports per-file metrics', async () => {
     const tempDir = await makeTempDir('dyslibria-reader-config-');
     const filePath = path.join(tempDir, 'chapter.xhtml');

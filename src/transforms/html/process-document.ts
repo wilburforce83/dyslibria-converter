@@ -502,6 +502,59 @@ function applyRootClasses($: CheerioAPI, targets: ProcessingTarget[]): void {
   }
 }
 
+function mergeInlineStyleDeclarations(
+  currentStyle: string,
+  nextDeclarations: Array<[string, string]>
+): string {
+  const declarations = new Map<string, string>();
+
+  for (const segment of String(currentStyle || '').split(';')) {
+    const trimmedSegment = segment.trim();
+    if (!trimmedSegment) {
+      continue;
+    }
+
+    const separatorIndex = trimmedSegment.indexOf(':');
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const property = trimmedSegment.slice(0, separatorIndex).trim().toLowerCase();
+    const value = trimmedSegment.slice(separatorIndex + 1).trim();
+
+    if (!property || !value) {
+      continue;
+    }
+
+    declarations.set(property, value);
+  }
+
+  for (const [property, value] of nextDeclarations) {
+    declarations.set(property, value);
+  }
+
+  return [...declarations.entries()]
+    .map(([property, value]) => `${property}: ${value}`)
+    .join('; ');
+}
+
+function normalizeDocumentRootPresentation($: CheerioAPI): void {
+  const rootDeclarations: Array<[string, string]> = [
+    ['color', 'inherit !important'],
+    ['background', 'transparent !important'],
+    ['background-color', 'transparent !important']
+  ];
+
+  $('html, body').each(function () {
+    const element = $(this);
+    const nextStyle = mergeInlineStyleDeclarations(element.attr('style') || '', rootDeclarations);
+
+    if (nextStyle) {
+      element.attr('style', nextStyle);
+    }
+  });
+}
+
 export async function processDocument(
   filePath: string,
   rootDir: string,
@@ -534,6 +587,7 @@ export async function processDocument(
   applyWordStyles(processableMap.input, processableMap.references, engineResult.words);
   applyRenderedTextNodes($, targets);
   applyRootClasses($, targets);
+  normalizeDocumentRootPresentation($);
   injectActiveCss($, engineResult.css.active || '');
   cleanHtml($);
 

@@ -266,7 +266,7 @@ function generateCss(profile, variant) {
   ${lineHeightDeclaration}
   word-spacing: ${profile.visual.wordSpacing};
   letter-spacing: ${profile.visual.letterSpacing};
-  white-space: pre-wrap;
+  white-space: normal;
   color: inherit;
   max-width: ${profile.visual.maxLineWidth};
 }
