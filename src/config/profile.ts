@@ -1,8 +1,10 @@
 import path from 'node:path';
 import fs from 'fs-extra';
 import {
-  DEFAULT_PROFILE,
+  DEFAULT_PRESET_ID,
+  createProfileFromPreset,
   normalizeProfile,
+  resolvePresetId,
   validateAndNormalizeProfile
 } from '../lab-engine/core/profiles.js';
 import type {
@@ -42,9 +44,11 @@ function extractProfile(
   source: ProfileSource
 ): { profileSource: ProfileSource; rawProfile: JsonObject } {
   if (!input) {
+    const defaultProfile = createProfileFromPreset(DEFAULT_PRESET_ID) as JsonObject;
+
     return {
       profileSource: source,
-      rawProfile: DEFAULT_PROFILE as JsonObject
+      rawProfile: defaultProfile
     };
   }
 
@@ -75,15 +79,39 @@ function extractProfile(
 
 export async function resolveProfile(
   input?: ProfileInput,
-  profilePath?: string
+  profilePath?: string,
+  presetId?: string
 ): Promise<ResolvedProfile> {
+  if (presetId && (input || profilePath)) {
+    throw new Error('Specify either a presetId or a custom profile/profilePath, not both.');
+  }
+
   if (!input && !profilePath) {
-    const validation = validateAndNormalizeProfile(DEFAULT_PROFILE);
+    if (presetId) {
+      const resolvedPresetId = resolvePresetId(presetId);
+
+      if (!resolvedPresetId) {
+        throw new Error(`Unknown Dyslibria preset: ${presetId}`);
+      }
+
+      const presetProfile = createProfileFromPreset(resolvedPresetId) as JsonObject;
+      const validation = validateAndNormalizeProfile(presetProfile);
+
+      return {
+        profileSource: { type: 'preset', presetId: resolvedPresetId },
+        profileWarnings: validation.warnings,
+        rawProfile: presetProfile,
+        profileUsed: validation.profile as JsonObject
+      };
+    }
+
+    const defaultProfile = createProfileFromPreset(DEFAULT_PRESET_ID) as JsonObject;
+    const validation = validateAndNormalizeProfile(defaultProfile);
 
     return {
       profileSource: { type: 'default' },
       profileWarnings: validation.warnings,
-      rawProfile: DEFAULT_PROFILE as JsonObject,
+      rawProfile: defaultProfile,
       profileUsed: validation.profile as JsonObject
     };
   }

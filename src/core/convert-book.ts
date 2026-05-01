@@ -86,6 +86,7 @@ export async function convertBook(input: ConversionInput, options: ConvertBookOp
       message: 'Applying Dyslibria text transformation'
     });
     const processingResult = await processHtmlFiles(workspace.extractedDir, {
+      presetId: normalizedOptions.presetId,
       profile: normalizedOptions.profile,
       profilePath: normalizedOptions.profilePath,
       logger: normalizedOptions.logger

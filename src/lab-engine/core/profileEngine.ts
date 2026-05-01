@@ -1,8 +1,10 @@
 // @ts-nocheck
 import {
+  DEFAULT_PRESET_ID,
   DEFAULT_PROFILES,
   INTERNAL_PRESET_PROFILES,
   PRESET_ALIASES,
+  PRESET_SHORTCUTS,
   buildProfile,
   mergeDeep,
 } from '../profiles/defaultProfiles.js';
@@ -71,11 +73,44 @@ export function normalizeProfile(rawProfile) {
   return syncDerivedProfileState(sanitizedProfile);
 }
 
-export function createProfileFromPreset(presetId) {
-  const resolvedPresetId = PRESET_ALIASES[presetId] || presetId;
-  const preset =
+function findPresetProfile(presetId) {
+  const resolvedPresetId = resolvePresetId(presetId) || presetId;
+  return (
     DEFAULT_PROFILES.find((profile) => profile.id === resolvedPresetId) ||
     INTERNAL_PRESET_PROFILES.find((profile) => profile.id === resolvedPresetId) ||
+    null
+  );
+}
+
+function normalizePresetKey(presetId) {
+  return String(presetId || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-');
+}
+
+export function resolvePresetId(presetId) {
+  const normalizedPresetId = normalizePresetKey(presetId);
+
+  if (!normalizedPresetId) {
+    return null;
+  }
+
+  const exactMatch =
+    DEFAULT_PROFILES.find((profile) => profile.id === normalizedPresetId) ||
+    INTERNAL_PRESET_PROFILES.find((profile) => profile.id === normalizedPresetId);
+
+  if (exactMatch) {
+    return exactMatch.id;
+  }
+
+  return PRESET_SHORTCUTS[normalizedPresetId] || PRESET_ALIASES[normalizedPresetId] || null;
+}
+
+export function createProfileFromPreset(presetId = DEFAULT_PRESET_ID) {
+  const preset =
+    findPresetProfile(presetId) ||
+    findPresetProfile(DEFAULT_PRESET_ID) ||
     DEFAULT_PROFILE;
   return normalizeProfile(preset);
 }
@@ -101,4 +136,4 @@ export function validateAndNormalizeProfile(rawProfile) {
   };
 }
 
-export { DEFAULT_PROFILE, DEFAULT_PROFILES as PROFILE_PRESETS, PROFILE_VERSION };
+export { DEFAULT_PRESET_ID, DEFAULT_PROFILE, DEFAULT_PROFILES as PROFILE_PRESETS, PROFILE_VERSION };

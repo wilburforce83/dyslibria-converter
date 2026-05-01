@@ -49,6 +49,7 @@ export interface NormalizedConvertBookOptions {
   maxArchiveEntries: number;
   maxExtractBytes: number;
   optimizeImages: NormalizedImageOptimizationOptions;
+  presetId?: string;
   profile?: ProfileInput;
   profilePath?: string;
   logger?: ConvertBookOptions['logger'];
@@ -97,6 +98,7 @@ export function normalizeConvertBookOptions(options: ConvertBookOptions = {}): N
     optimizeImages: normalizeImageOptimizationOptions(
       options.optimizeImages ?? DEFAULT_OPTIMIZE_IMAGES
     ),
+    presetId: options.presetId,
     profile: options.profile,
     profilePath: options.profilePath,
     logger: options.logger

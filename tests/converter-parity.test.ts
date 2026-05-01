@@ -4,7 +4,15 @@ import fs from 'fs-extra';
 import AdmZip from 'adm-zip';
 import { describe, expect, test, vi } from 'vitest';
 
-import { convertBook, inspectBook, processHtmlFiles, resolveZipEntryPath, createEpubBuffer } from '../src';
+import {
+  convertBook,
+  DEFAULT_PRESET_ID,
+  inspectBook,
+  processHtmlFiles,
+  resolvePresetId,
+  resolveZipEntryPath,
+  createEpubBuffer,
+} from '../src';
 import { DEFAULT_DICTIONARY_PATH } from '../src/config/defaults';
 import { createMinimalEpub } from './helpers/epubTestUtils';
 
@@ -55,6 +63,39 @@ describe('converter parity', () => {
     expect(content).not.toMatch(/<pre>.*dyslibria-word/s);
   });
 
+  test('processHtmlFiles uses the shared default preset when no profile input is provided', async () => {
+    const tempDir = await makeTempDir('dyslibria-default-preset-');
+    const filePath = path.join(tempDir, 'default-preset.xhtml');
+
+    await fs.writeFile(filePath, '<p>Default preset resolution should stay aligned with the published UI default.</p>');
+
+    const result = await processHtmlFiles(tempDir, new Set());
+
+    expect(result.metricsReport.profileSource.type).toBe('default');
+    expect(result.metricsReport.profileUsed.id).toBe(DEFAULT_PRESET_ID);
+    expect(result.metricsReport.profileUsed.name).toBe('Dyslibria Default');
+  });
+
+  test('resolvePresetId supports semantic shorthand flags and legacy aliases', () => {
+    expect(resolvePresetId('balanced')).toBe('dyslibria-balanced');
+    expect(resolvePresetId('dyslibria_default')).toBe('intense-scaffolding');
+    expect(resolvePresetId('technical-reading')).toBe('intense-scaffolding');
+    expect(resolvePresetId('unknown-preset')).toBeNull();
+  });
+
+  test('processHtmlFiles accepts a presetId without requiring profile JSON', async () => {
+    const tempDir = await makeTempDir('dyslibria-preset-id-');
+    const filePath = path.join(tempDir, 'preset-id.xhtml');
+
+    await fs.writeFile(filePath, '<p>Balanced preset shorthand should resolve without custom profile JSON.</p>');
+
+    const result = await processHtmlFiles(tempDir, { presetId: 'balanced' });
+
+    expect(result.metricsReport.profileSource.type).toBe('preset');
+    expect(result.metricsReport.profileSource.presetId).toBe('dyslibria-balanced');
+    expect(result.metricsReport.profileUsed.id).toBe('dyslibria-balanced');
+  });
+
   test('processHtmlFiles escapes stray ampersands without double-escaping valid entities', async () => {
     const tempDir = await makeTempDir('dyslibria-entities-');
     const filePath = path.join(tempDir, 'entities.xhtml');
@@ -75,7 +116,9 @@ describe('converter parity', () => {
 
     expect(result.processedFiles).toBe(1);
     expect(result.errors).toEqual([]);
-    expect(content).toContain('AT&amp;T and Tom &amp; Jerry &amp; Blues');
+    expect(content).toContain('AT&amp;T');
+    expect(content).toContain('Tom &amp;');
+    expect(content).toContain('&amp; Blues');
     expect(content).toMatch(/<pre>R&amp;D &amp;&amp; Co\.<\/pre>/);
     expect(content).not.toMatch(/&amp;amp;/);
     expect(result.metricsReport.files[0]?.metrics?.totalWords).toBeGreaterThan(0);

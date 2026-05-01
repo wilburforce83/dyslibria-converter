@@ -4,17 +4,20 @@ Canonical EPUB-to-Dyslibria conversion engine for Node.js.
 
 This repository is the long-term home of the Dyslibria conversion pipeline, extracted from the self-hosted library app without bringing along reader, auth, billing, or UI concerns. The goal of the initial `0.x` series is behavior parity with the current self-hosted converter, backed by a growing golden-fixture suite.
 
-## Breaking Change In 1.0.0
+## Breaking Change In 2.0.0
 
-`1.0.0` is a breaking release.
+`2.0.0` is a breaking release.
 
 Key upgrade notes:
 
+- the default profile path is now `Dyslibria Default` (`intense-scaffolding`) when no custom profile JSON is supplied
+- the CLI and API now support semantic preset selection such as `-balanced`, `-dyslibria_default`, and `presetId: 'focus'`
+- the package now exports the shared lab-engine modules so other Dyslibria apps can consume a single typography source of truth
 - image optimization is now enabled by default unless you explicitly pass `optimizeImages: false` or `--no-optimize-images`
 - the converter now accepts Dyslibria lab profile JSON and full reader-configuration wrappers, which expands the public API surface
 - conversion results now expose richer `processingMetrics`, so consumers that assumed the older narrower result shape should review their integrations before upgrading
 
-If you are upgrading from `0.x`, test your conversion output and CLI automation before rolling this version out broadly.
+If you are upgrading from `1.x` or earlier, test your conversion output and CLI automation before rolling this version out broadly.
 
 ## Current scope
 
@@ -40,7 +43,7 @@ import { convertBook, inspectBook } from 'dyslibria-converter';
 
 const result = await convertBook('/path/to/book.epub', {
   outputPath: '/path/to/book-dyslibria.epub',
-  profilePath: './reader-config.json'
+  presetId: 'balanced'
 });
 
 console.log(result.outputPath);
@@ -56,6 +59,9 @@ console.log(inspection.title, inspection.author);
 
 ```bash
 npx dyslibria-convert convert ./input.epub --output ./output.epub
+npx dyslibria-convert convert ./input.epub --output ./output.epub -dyslibria_default
+npx dyslibria-convert convert ./input.epub --output ./output.epub -balanced
+npx dyslibria-convert convert ./input.epub --output ./output.epub --preset focus
 npx dyslibria-convert convert ./input.epub --output ./output.epub --profile ./reader-config.json
 npx dyslibria-convert convert ./input.epub --output ./output.epub --metrics-output ./book-metrics.json
 npx dyslibria-convert convert ./input.epub --output ./output.epub --no-optimize-images
@@ -85,7 +91,39 @@ await convertBook('/path/to/book.epub', {
 });
 ```
 
+Or select a built-in preset semantically:
+
+```ts
+await convertBook('/path/to/book.epub', {
+  presetId: 'balanced'
+});
+```
+
 The nested `profile` object remains the converter-facing source of truth when you pass the reader wrapper.
+Use either `presetId` or a custom `profile` / `profilePath`, not both.
+
+If you do not pass a profile at all, the converter now falls back to the built-in `Dyslibria Default` preset (preset id `intense-scaffolding`).
+
+Accepted preset shorthands include:
+
+- `default` or `dyslibria_default` -> `intense-scaffolding`
+- `balanced` -> `dyslibria-balanced`
+- `dense` -> `dense-text-support`
+- `focus` -> `focus-support`
+- `dyslexia` -> `dyslexia-spacing`
+- `front-load` -> `front-load-emphasis`
+
+## Shared Lab Engine Surface
+
+The package now also exposes the browser-safe lab engine modules that power Dyslibria typography work in other repos:
+
+- `dyslibria-converter/lab-engine/core`
+- `dyslibria-converter/lab-engine/core/*`
+- `dyslibria-converter/lab-engine/language`
+- `dyslibria-converter/lab-engine/language/*`
+- `dyslibria-converter/lab-engine/profiles/*`
+
+That exported surface is intended to be the single point of truth for profile logic, language rules, and text-engine behavior across the Dyslibria suite.
 
 ## Processing Metrics
 

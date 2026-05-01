@@ -6,6 +6,7 @@ interface ConvertCommandOptions {
   inputPath: string;
   outputPath?: string;
   optimizeImages?: boolean;
+  presetId?: string;
   profilePath?: string;
   metricsOutputPath?: string;
 }
@@ -16,6 +17,7 @@ export async function runConvertCommand(options: ConvertCommandOptions): Promise
   const result = await convertBook(options.inputPath, {
     outputPath,
     optimizeImages: options.optimizeImages,
+    presetId: options.presetId,
     profilePath: options.profilePath,
     returnBuffer: false,
     logger: (event) => {

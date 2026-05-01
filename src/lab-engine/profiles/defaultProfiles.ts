@@ -36,7 +36,61 @@ function buildProfile(id, name, description, override) {
   });
 }
 
+export const DEFAULT_PRESET_ID = 'intense-scaffolding';
+
 export const DEFAULT_PROFILES = [
+  buildProfile(
+    'intense-scaffolding',
+    'Dyslibria Default',
+    'Default Dyslibria reading profile with strong front-loaded scaffolding and structural guidance.',
+    {
+      emphasisDensity: 0.26,
+      maxEmphasisPerSentence: 5,
+      maxEmphasisPerParagraph: 0.3,
+      cooldownBetweenAnchors: 1,
+      readingNeeds: {
+        longTextFatigueSupport: true,
+        lowVisualNoiseMode: true,
+      },
+      languageAware: {
+        enableClusterHighlighting: false,
+        enableSuffixHighlighting: true,
+        enablePrefixHighlighting: false,
+        enableCompoundSplitting: true,
+        enableSyllableChunking: false,
+        enableStressHighlighting: false,
+        enableSilentPatternMarking: false,
+      },
+      attentionMapping: {
+        maxAnchorsPerSentence: 5,
+        anchorDensity: 0.26,
+        anchorDistribution: 'front-loaded',
+        antiClumpingWindow: 2,
+        anchorWordMinimumLength: 5,
+      },
+      flowControl: {
+        cooldownAfterEmphasis: 1,
+        emphasisSmoothing: 0.3,
+      },
+      cognitiveLoad: {
+        emphasisBudgetPerParagraph: 0.3,
+        longSentenceThreshold: 15,
+      },
+      structuralAwareness: {
+        sentenceStarts: true,
+        clauseBoundaries: true,
+        punctuationWeight: 0.3,
+        paragraphLeadEmphasis: true,
+      },
+      visual: {
+        letterSpacing: '0.012em',
+        wordSpacing: '0.03em',
+        lineHeight: 1.8,
+        paragraphSpacing: '1.22em',
+        maxLineWidth: '35rem',
+      },
+    },
+  ),
   buildProfile(
     'dyslibria-balanced',
     'Balanced',
@@ -79,58 +133,6 @@ export const DEFAULT_PROFILES = [
         sentenceStarts: true,
         clauseBoundaries: true,
         punctuationWeight: 0.24,
-        paragraphLeadEmphasis: true,
-      },
-      visual: {
-        letterSpacing: '0.012em',
-        wordSpacing: '0.03em',
-        lineHeight: 1.8,
-        paragraphSpacing: '1.22em',
-        maxLineWidth: '35rem',
-      },
-    },
-  ),
-  buildProfile(
-    'intense-scaffolding',
-    'Intense scaffolding',
-    'Dense-text support with maximum guidance strength, front-loaded scaffolding, and stronger structural cueing.',
-    {
-      emphasisDensity: 0.26,
-      maxEmphasisPerSentence: 5,
-      maxEmphasisPerParagraph: 0.3,
-      cooldownBetweenAnchors: 1,
-      readingNeeds: {
-        longTextFatigueSupport: true,
-        lowVisualNoiseMode: true,
-      },
-      languageAware: {
-        enableClusterHighlighting: false,
-        enableSuffixHighlighting: true,
-        enablePrefixHighlighting: false,
-        enableCompoundSplitting: true,
-        enableSyllableChunking: false,
-        enableStressHighlighting: false,
-        enableSilentPatternMarking: false,
-      },
-      attentionMapping: {
-        maxAnchorsPerSentence: 5,
-        anchorDensity: 0.26,
-        anchorDistribution: 'front-loaded',
-        antiClumpingWindow: 2,
-        anchorWordMinimumLength: 5,
-      },
-      flowControl: {
-        cooldownAfterEmphasis: 1,
-        emphasisSmoothing: 0.3,
-      },
-      cognitiveLoad: {
-        emphasisBudgetPerParagraph: 0.3,
-        longSentenceThreshold: 15,
-      },
-      structuralAwareness: {
-        sentenceStarts: true,
-        clauseBoundaries: true,
-        punctuationWeight: 0.3,
         paragraphLeadEmphasis: true,
       },
       visual: {
@@ -346,6 +348,7 @@ export const INTERNAL_PRESET_PROFILES = [
 ];
 
 export const PRESET_ALIASES = {
+  'dyslibria-default': 'intense-scaffolding',
   'dyslibria-sparse': 'dyslibria-balanced',
   'dyslibria-deep-parse': 'dense-text-support',
   'dyslibria-dyslexia-spacing': 'dyslexia-spacing',
@@ -354,6 +357,18 @@ export const PRESET_ALIASES = {
   'dyslibria-language-learner': 'dense-text-support',
   'minimal-intervention': 'dyslibria-balanced',
   'technical-reading': 'intense-scaffolding',
+};
+
+export const PRESET_SHORTCUTS = {
+  default: DEFAULT_PRESET_ID,
+  balanced: 'dyslibria-balanced',
+  dense: 'dense-text-support',
+  'dense-text': 'dense-text-support',
+  focus: 'focus-support',
+  dyslexia: 'dyslexia-spacing',
+  'front-load': 'front-load-emphasis',
+  kindle: 'kindle-safe',
+  experimental: 'experimental-multi-tier',
 };
 
 export { buildProfile, mergeDeep };

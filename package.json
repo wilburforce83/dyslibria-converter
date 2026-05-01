@@ -1,6 +1,6 @@
 {
   "name": "dyslibria-converter",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "Canonical EPUB-to-Dyslibria conversion engine with CLI and Node.js API.",
   "license": "ISC",
   "author": "wilburforce83",
@@ -25,7 +25,33 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "require": "./dist/index.js"
+    },
+    "./lab-engine/core": {
+      "types": "./dist/lab-engine/core/index.d.ts",
+      "import": "./dist/lab-engine/core/index.js",
+      "require": "./dist/lab-engine/core/index.js"
+    },
+    "./lab-engine/core/*": {
+      "types": "./dist/lab-engine/core/*.d.ts",
+      "import": "./dist/lab-engine/core/*.js",
+      "require": "./dist/lab-engine/core/*.js"
+    },
+    "./lab-engine/language": {
+      "types": "./dist/lab-engine/language/languageRegistry.d.ts",
+      "import": "./dist/lab-engine/language/languageRegistry.js",
+      "require": "./dist/lab-engine/language/languageRegistry.js"
+    },
+    "./lab-engine/language/*": {
+      "types": "./dist/lab-engine/language/*.d.ts",
+      "import": "./dist/lab-engine/language/*.js",
+      "require": "./dist/lab-engine/language/*.js"
+    },
+    "./lab-engine/profiles/*": {
+      "types": "./dist/lab-engine/profiles/*.d.ts",
+      "import": "./dist/lab-engine/profiles/*.js",
+      "require": "./dist/lab-engine/profiles/*.js"
     }
   },
   "bin": {
@@ -39,7 +65,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsup src/index.ts src/cli/index.ts --format cjs --dts --clean --outDir dist && node scripts/copy-assets.mjs",
+    "build": "tsup --config tsup.config.ts && node scripts/copy-assets.mjs",
     "dev": "tsx src/cli/index.ts",
     "qa:pack": "npm pack --dry-run",
     "qa:real-world": "node scripts/run-real-world-regression.mjs",

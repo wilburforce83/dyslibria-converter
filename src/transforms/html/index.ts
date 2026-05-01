@@ -17,6 +17,7 @@ export interface HtmlProcessingError {
 }
 
 export interface HtmlProcessingOptions {
+  presetId?: string;
   profile?: ProfileInput;
   profilePath?: string;
   logger?: ConversionLogger;
@@ -178,7 +179,7 @@ export async function processHtmlFiles(
   optionsOrLegacy?: HtmlProcessingOptions | Set<string>
 ): Promise<HtmlProcessingResult> {
   const options = normalizeOptions(optionsOrLegacy);
-  const resolvedProfile = await resolveProfile(options.profile, options.profilePath);
+  const resolvedProfile = await resolveProfile(options.profile, options.profilePath, options.presetId);
   const files: HtmlFileProcessingMetrics[] = [];
   const errors: HtmlProcessingError[] = [];
   const stylesheetSanitization = await sanitizeStylesheetFiles(dir, options.logger);

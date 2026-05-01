@@ -7,6 +7,7 @@ export { planEmphasis } from './emphasisPlanner.js';
 export { calculateMetrics } from './metrics.js';
 export { createPerformanceContext, summarizePerformance } from './performance.js';
 export {
+  DEFAULT_PRESET_ID,
   createProfile,
   createProfileFromPreset,
   DEFAULT_PROFILE,
@@ -14,6 +15,7 @@ export {
   parseProfile,
   PROFILE_PRESETS,
   PROFILE_VERSION,
+  resolvePresetId,
   serializeProfile,
   validateAndNormalizeProfile,
 } from './profiles.js';

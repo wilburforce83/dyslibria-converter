@@ -38,11 +38,13 @@ export type ProfileInput = JsonObject | ReaderConfiguration;
 export interface ProfileSource {
   type:
     | 'default'
+    | 'preset'
     | 'inline-profile'
     | 'inline-reader-configuration'
     | 'file-profile'
     | 'file-reader-configuration';
   path?: string;
+  presetId?: string;
 }
 
 export interface ConvertBookOptions {
@@ -56,6 +58,7 @@ export interface ConvertBookOptions {
   maxArchiveEntries?: number;
   maxExtractBytes?: number;
   optimizeImages?: boolean | ImageOptimizationOptions;
+  presetId?: string;
   profile?: ProfileInput;
   profilePath?: string;
   logger?: ConversionLogger;
