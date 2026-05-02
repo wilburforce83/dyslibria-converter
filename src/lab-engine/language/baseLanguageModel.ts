@@ -64,6 +64,66 @@ function normalizeSilentPatterns(silentPatterns = []) {
   return normalizeMatcherList(silentPatterns);
 }
 
+function normalizeLexiconEntry(entry) {
+  if (typeof entry === 'string') {
+    return {
+      term: entry.toLowerCase(),
+      familiarityScore: 0.86,
+      rarityScore: 0.14,
+      complexityAdjustment: -0.08,
+      commonalityBand: 'common',
+      role: 'content',
+      technical: false,
+    };
+  }
+
+  const term = (entry.term || entry.word || '').toLowerCase();
+
+  if (!term) {
+    return null;
+  }
+
+  const familiarityScore = clamp(
+    Number.isFinite(Number(entry.familiarityScore)) ? Number(entry.familiarityScore) : 0.5,
+    0,
+    1,
+  );
+  const rarityScore = clamp(
+    Number.isFinite(Number(entry.rarityScore)) ? Number(entry.rarityScore) : 1 - familiarityScore,
+    0,
+    1,
+  );
+
+  return {
+    term,
+    familiarityScore,
+    rarityScore,
+    complexityAdjustment: clamp(
+      Number.isFinite(Number(entry.complexityAdjustment))
+        ? Number(entry.complexityAdjustment)
+        : rarityScore * 0.18 - familiarityScore * 0.12,
+      -0.3,
+      0.3,
+    ),
+    commonalityBand: entry.commonalityBand || 'general',
+    role: entry.role || 'content',
+    technical: Boolean(entry.technical),
+  };
+}
+
+function normalizeLexiconEntries(entries = []) {
+  const lexiconEntries = new Map();
+
+  entries
+    .map(normalizeLexiconEntry)
+    .filter(Boolean)
+    .forEach((entry) => {
+      lexiconEntries.set(entry.term, entry);
+    });
+
+  return [...lexiconEntries.values()];
+}
+
 function createCharacterSet(values) {
   return new Set(values.flatMap((value) => [...value.toLowerCase()]));
 }
@@ -396,6 +456,26 @@ function detectStressFeaturesFactory(model) {
   };
 }
 
+function resolveCommonalityBand(analysis, familiarityScore, rarityScore, technical) {
+  if (analysis.isFunctionWord) {
+    return 'function';
+  }
+
+  if (analysis.isHighFrequencyWord || familiarityScore >= 0.88) {
+    return 'highFrequency';
+  }
+
+  if (technical || analysis.wordRole === 'technical' || rarityScore >= 0.74) {
+    return 'specialized';
+  }
+
+  if (rarityScore >= 0.48) {
+    return 'uncommon';
+  }
+
+  return 'general';
+}
+
 function classifyWordRoleFactory(model) {
   const functionWordSet = new Set(model.functionWords.map((word) => word.toLowerCase()));
   const highFrequencySet = new Set(model.highFrequencyWords.map((word) => word.toLowerCase()));
@@ -403,6 +483,11 @@ function classifyWordRoleFactory(model) {
   return function classifyWordRole(word) {
     const loweredWord = word.toLowerCase();
     const hasTechnicalCapitalPattern = /[a-z][A-Z]/.test(word) || /[A-Z]{2,}/.test(word);
+    const lexiconEntry = model._compiled.lexicon.get(loweredWord);
+
+    if (lexiconEntry?.role) {
+      return lexiconEntry.role;
+    }
 
     if (functionWordSet.has(loweredWord)) {
       return 'function';
@@ -415,12 +500,122 @@ function classifyWordRoleFactory(model) {
     if (
       loweredWord.length >= model.weights.veryLongWordThreshold ||
       hasTechnicalCapitalPattern ||
+      lexiconEntry?.technical ||
       model.morphology.derivationalSuffixes.some((suffix) => loweredWord.endsWith(suffix))
     ) {
       return 'technical';
     }
 
     return 'content';
+  };
+}
+
+function analyzeLexicalFamiliarityFactory(model) {
+  const difficultClusterSet = new Set(
+    model.orthography.difficultClusters.map((pattern) =>
+      typeof pattern === 'string' ? pattern : pattern.pattern,
+    ),
+  );
+  const rareClusterSet = new Set(model.orthography.rareClusters);
+  const longDerivationalSuffixes = model.morphology.derivationalSuffixes.filter((suffix) => suffix.length >= 4);
+
+  return function analyzeLexicalFamiliarity(analysis) {
+    const loweredWord = analysis.normalized;
+    const lexiconEntry = model._compiled.lexicon.get(loweredWord);
+
+    if (lexiconEntry) {
+      const commonalityBand = resolveCommonalityBand(
+        analysis,
+        lexiconEntry.familiarityScore,
+        lexiconEntry.rarityScore,
+        lexiconEntry.technical,
+      );
+
+      return {
+        familiarityScore: lexiconEntry.familiarityScore,
+        rarityScore: lexiconEntry.rarityScore,
+        complexityAdjustment: lexiconEntry.complexityAdjustment,
+        commonalityBand,
+        source: 'lexicon',
+      };
+    }
+
+    let familiarityScore = 0.48;
+
+    if (analysis.isFunctionWord) {
+      familiarityScore = 0.99;
+    } else if (analysis.isHighFrequencyWord) {
+      familiarityScore = 0.9;
+    } else {
+      familiarityScore += Number(analysis.length <= 4) * 0.22;
+      familiarityScore += Number(analysis.length <= 6) * 0.08;
+      familiarityScore += Number(analysis.detectedClusters.length === 0) * 0.08;
+      familiarityScore += Number(analysis.detectedVowelGroups.length <= 1) * 0.05;
+      familiarityScore += Number((analysis.significantSilentPatterns || analysis.detectedSilentPatterns).length === 0) * 0.04;
+      familiarityScore += Number(analysis.detectedSuffixes.length === 0) * 0.04;
+      familiarityScore -= Number(analysis.isLongWord) * 0.14;
+      familiarityScore -= Number(analysis.isVeryLongWord) * 0.12;
+      familiarityScore -= Number(analysis.possibleCompoundParts.length > 1) * 0.14;
+      familiarityScore -= Number(analysis.significantSuffixes.length > 0) * 0.12;
+      familiarityScore -= Number(analysis.wordRole === 'technical') * 0.16;
+      familiarityScore -= analysis.detectedClusters.reduce((sum, cluster) => {
+        if (rareClusterSet.has(cluster.pattern)) {
+          return sum + 0.08;
+        }
+
+        if (difficultClusterSet.has(cluster.pattern)) {
+          return sum + 0.04;
+        }
+
+        return sum + 0.015;
+      }, 0);
+      familiarityScore -= detectSubstringMatches(loweredWord, model.orthography.rareClusters).length * 0.08;
+      familiarityScore -= analysis.detectedVowelGroups.reduce(
+        (sum, vowelGroup) => sum + Number(vowelGroup.pattern.length >= 3) * 0.04,
+        0,
+      );
+      familiarityScore -=
+        longDerivationalSuffixes.filter((suffix) => loweredWord.endsWith(suffix)).length * 0.06;
+    }
+
+    familiarityScore = clamp(familiarityScore, 0.02, 0.99);
+
+    let rarityScore = clamp(
+      1 - familiarityScore +
+        Number(analysis.wordRole === 'technical') * 0.12 +
+        Number(analysis.possibleCompoundParts.length > 1) * 0.06 +
+        Number(analysis.isVeryLongWord) * 0.08,
+      0.01,
+      0.99,
+    );
+
+    if (analysis.isFunctionWord) {
+      rarityScore = Math.min(rarityScore, 0.03);
+    } else if (analysis.isHighFrequencyWord) {
+      rarityScore = Math.min(rarityScore, 0.12);
+    }
+
+    return {
+      familiarityScore,
+      rarityScore,
+      complexityAdjustment: clamp(
+        rarityScore * 0.18 -
+          familiarityScore * 0.1 +
+          Number(analysis.wordRole === 'technical') * 0.06 +
+          Number(analysis.isVeryLongWord) * 0.04 -
+          Number(analysis.isFunctionWord) * 0.08 -
+          Number(analysis.isHighFrequencyWord) * 0.04,
+        -0.14,
+        0.2,
+      ),
+      commonalityBand: resolveCommonalityBand(
+        analysis,
+        familiarityScore,
+        rarityScore,
+        analysis.wordRole === 'technical',
+      ),
+      source: 'heuristic',
+    };
   };
 }
 
@@ -516,7 +711,15 @@ function calculateWordComplexityFactory(model) {
       suffixScore * weightConfig.suffixWeight +
       vowelClusterScore * weightConfig.vowelClusterWeight;
 
-    return clamp(weightedScore / Math.max(totalWeight, 0.01), 0, 1);
+    const lexicalAdjustment = clamp(
+      (analysis.lexicalComplexityAdjustment || 0) +
+        (analysis.lexicalRarityScore || 0) * 0.08 -
+        (analysis.lexicalFamiliarityScore || 0) * 0.04,
+      -0.12,
+      0.16,
+    );
+
+    return clamp(weightedScore / Math.max(totalWeight, 0.01) + lexicalAdjustment, 0, 1);
   };
 }
 
@@ -710,6 +913,7 @@ export function createLanguageModel(config) {
     },
     functionWords: normalizePatternList(config.functionWords || []),
     highFrequencyWords: normalizePatternList(config.highFrequencyWords || []),
+    lexicon: normalizeLexiconEntries(config.lexicon || []),
   };
 
   const combinedSuffixes = normalizeAffixDescriptors([
@@ -745,9 +949,11 @@ export function createLanguageModel(config) {
     clusterPatterns: combinedClusters,
     vowelGroups: model.orthography.vowelGroups,
     silentPatterns: model.orthography.silentPatterns,
+    lexicon: new Map(model.lexicon.map((entry) => [entry.term, entry])),
   };
 
   model.methods = {
+    analyzeLexicalFamiliarity: analyzeLexicalFamiliarityFactory(model),
     calculateWordComplexity: calculateWordComplexityFactory(model),
     detectEmphasisZones: detectEmphasisZonesFactory(model),
     splitIntoChunks: splitIntoChunksFactory(model),

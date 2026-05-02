@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { italianLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = italianLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'it',
@@ -53,8 +56,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'e', 'o', 'ma', 'di', 'del', 'in', 'con', 'per', 'che', 'è', 'si', 'da', 'io', 'tu', 'lui', 'lei', 'noi', 'voi'],
-  highFrequencyWords: ['come', 'anche', 'questo', 'quella', 'della', 'delle', 'nella', 'dopo', 'prima', 'molto', 'allora', 'sempre', 'ancora', 'stesso'],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 8,
     veryLongWordThreshold: 13,

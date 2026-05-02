@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { germanLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = germanLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'de',
@@ -53,8 +56,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['der', 'die', 'das', 'ein', 'eine', 'und', 'oder', 'aber', 'mit', 'von', 'zu', 'im', 'in', 'auf', 'für', 'ist', 'es', 'sie', 'er', 'wir', 'ich', 'du', 'dem', 'den', 'des'],
-  highFrequencyWords: ['nicht', 'haben', 'werden', 'dieser', 'durch', 'zwischen', 'über', 'unter', 'diese', 'ihnen', 'auch', 'schon', 'dann', 'wieder'],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 9,
     veryLongWordThreshold: 15,

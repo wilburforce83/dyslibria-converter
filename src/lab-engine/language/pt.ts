@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { portugueseLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = portugueseLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'pt',
@@ -59,8 +62,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['o', 'a', 'os', 'as', 'um', 'uma', 'e', 'ou', 'mas', 'de', 'do', 'da', 'em', 'com', 'por', 'para', 'é', 'que', 'se', 'ao', 'eu', 'tu', 'ele', 'ela', 'nós', 'eles'],
-  highFrequencyWords: ['como', 'sobre', 'entre', 'também', 'porque', 'quando', 'desde', 'até', 'onde', 'eles', 'agora', 'sempre', 'ainda', 'mesmo', 'aqui'],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 8,
     veryLongWordThreshold: 13,

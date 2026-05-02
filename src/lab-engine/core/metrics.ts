@@ -27,9 +27,17 @@ function calculateCognitiveLoadScore(model, emphasisDensity) {
     ? model.analysis.totalWords / model.analysis.totalSentences
     : 0;
   const sentenceLengthPressure = clamp(averageSentenceLength / 24, 0, 1);
-  const complexityPressure = clamp(model.analysis.averageComplexityScore, 0, 1);
+  const complexityPressure = clamp(
+    Math.max(model.analysis.averageComplexityScore, model.analysis.averageReadingPressureScore || 0),
+    0,
+    1,
+  );
   const paragraphPressure = clamp(
-    average(model.paragraphs.map((paragraph) => paragraph.analysis.averageComplexity || 0)),
+    average(
+      model.paragraphs.map((paragraph) =>
+        Math.max(paragraph.analysis.averageComplexity || 0, paragraph.analysis.densityScore || 0),
+      ),
+    ),
     0,
     1,
   );

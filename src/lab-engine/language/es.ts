@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { spanishLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = spanishLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'es',
@@ -59,8 +62,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['el', 'la', 'los', 'las', 'un', 'una', 'y', 'o', 'pero', 'de', 'del', 'en', 'con', 'por', 'para', 'es', 'que', 'se', 'lo', 'al', 'yo', 'tú', 'él', 'ella', 'nosotros', 'ellos'],
-  highFrequencyWords: ['como', 'sobre', 'entre', 'también', 'porque', 'cuando', 'desde', 'hasta', 'donde', 'ellos', 'ella', 'ahora', 'siempre', 'todavía', 'estamos'],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 8,
     veryLongWordThreshold: 13,

@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { swedishLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = swedishLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'sv',
@@ -53,8 +56,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['och', 'eller', 'men', 'att', 'det', 'den', 'de', 'en', 'ett', 'i', 'på', 'med', 'för', 'av', 'är', 'som', 'till', 'om', 'sig', 'vi', 'jag', 'du', 'han', 'hon', 'inte'],
-  highFrequencyWords: ['också', 'mellan', 'under', 'över', 'genom', 'många', 'andra', 'efter', 'innan', 'utan', 'alltid', 'redan', 'sedan', 'bara'],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 8,
     veryLongWordThreshold: 14,

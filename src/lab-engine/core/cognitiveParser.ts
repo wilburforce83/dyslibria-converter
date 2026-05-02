@@ -9,6 +9,48 @@ function average(values) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 }
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function averageTop(values, count) {
+  return average([...values].sort((left, right) => right - left).slice(0, count));
+}
+
+function getWordChallengeScore(word) {
+  return clamp(
+    word.analysis.readingPressureScore * 0.74 +
+      word.analysis.complexityScore * 0.16 +
+      Number(word.analysis.wordRole === 'technical') * 0.08 +
+      Number(word.analysis.possibleCompoundParts.length > 1) * 0.05 -
+      Number(word.analysis.isFunctionWord) * 0.18 -
+      Number(word.analysis.isHighFrequencyWord) * 0.08,
+    0,
+    1,
+  );
+}
+
+function annotateLocalReadingPressure(documentModel) {
+  documentModel.paragraphs.forEach((paragraph) => {
+    paragraph.sentences.forEach((sentence) => {
+      sentence.words.forEach((word, index) => {
+        const neighbors = sentence.words.slice(Math.max(0, index - 2), Math.min(sentence.words.length, index + 3));
+        const nearbyChallengingWords = neighbors.filter(
+          (candidate) => candidate !== word && candidate.analysis.isChallengingWord,
+        ).length;
+
+        word.analysis.localReadingPressure = clamp(
+          average(neighbors.map(getWordChallengeScore)) + nearbyChallengingWords * 0.06,
+          0,
+          1,
+        );
+      });
+    });
+  });
+
+  return documentModel;
+}
+
 function resolveLanguageModel(text, profile, performanceContext) {
   if (profile.sourceLanguage && profile.sourceLanguage !== 'auto') {
     return getLanguageModel(profile.sourceLanguage);
@@ -29,30 +71,94 @@ function analyzeSentences(documentModel, profile) {
       const averageComplexity = average(complexityValues);
       const averageWordLength = average(sentence.words.map((word) => word.analysis.length));
       const clauseBoundaryCount = sentence.words.filter((word) => word.afterClauseBoundary).length;
+      const challengeValues = sentence.words.map(getWordChallengeScore);
+      const contentWords = sentence.words.filter(
+        (word) => !word.analysis.isFunctionWord && !word.analysis.isHighFrequencyWord,
+      );
+      const challengingWordRatio = sentence.words.length
+        ? sentence.words.filter((word) => word.analysis.isChallengingWord).length / sentence.words.length
+        : 0;
+      const averageReadingPressure = average(challengeValues);
+      const peakReadingPressure = averageTop(challengeValues, Math.min(3, challengeValues.length));
+      const contentReadingPressure = average(contentWords.map(getWordChallengeScore));
+      const lengthPressure = clamp(
+        (sentence.words.length - Math.max(profile.cognitiveLoad.longSentenceThreshold - 2, 6)) / 10,
+        0,
+        1,
+      );
+      const clausePressure = clamp(
+        clauseBoundaryCount / Math.max(Math.ceil(sentence.words.length / 6), 1),
+        0,
+        1,
+      );
+      const familiarityRelief = average(
+        sentence.words.map((word) => word.analysis.lexicalFamiliarityScore || 0),
+      ) * 0.18;
+      const densityScore = clamp(
+        lengthPressure * 0.24 +
+          clausePressure * 0.16 +
+          averageComplexity * 0.12 +
+          contentReadingPressure * 0.22 +
+          peakReadingPressure * 0.18 +
+          challengingWordRatio * 0.18 -
+          familiarityRelief,
+        0,
+        1,
+      );
+      const isLong = sentence.words.length >= profile.cognitiveLoad.longSentenceThreshold;
+      const isDense = densityScore >= 0.44 || (isLong && contentReadingPressure >= 0.32);
 
       sentence.analysis = {
         wordCount: sentence.words.length,
         averageComplexity,
+        averageReadingPressure,
         averageWordLength,
         clauseBoundaryCount,
-        isLong: sentence.words.length >= profile.cognitiveLoad.longSentenceThreshold,
-        isSimple: sentence.words.length <= 8 && averageComplexity < 0.28,
+        challengingWordRatio,
+        densityScore,
+        peakReadingPressure,
+        contentReadingPressure,
+        isLong,
+        isDense,
+        isVeryDense: densityScore >= 0.68,
+        isSimple: sentence.words.length <= 8 && averageComplexity < 0.28 && densityScore < 0.24,
         isDialogue: paragraph.isDialogue,
       };
     });
+
+    const sentenceDensityValues = paragraph.sentences.map((sentence) => sentence.analysis.densityScore);
+    const paragraphReadingPressure = average(paragraph.words.map(getWordChallengeScore));
+    const longSentenceRatio = paragraph.sentences.length
+      ? paragraph.sentences.filter((sentence) => sentence.analysis.isLong).length / paragraph.sentences.length
+      : 0;
+    const densityScore = clamp(
+      average(sentenceDensityValues) * 0.52 +
+        paragraphReadingPressure * 0.22 +
+        average(paragraph.words.map((word) => word.analysis.complexityScore)) * 0.16 +
+        longSentenceRatio * 0.1,
+      0,
+      1,
+    );
 
     paragraph.analysis = {
       wordCount: paragraph.words.length,
       sentenceCount: paragraph.sentences.length,
       averageComplexity: average(paragraph.words.map((word) => word.analysis.complexityScore)),
+      averageReadingPressure: paragraphReadingPressure,
+      densityScore,
+      isDense: densityScore >= 0.42,
     };
   });
+
+  annotateLocalReadingPressure(documentModel);
 
   documentModel.analysis = {
     totalWords: documentModel.words.length,
     totalSentences: documentModel.sentences.length,
     totalParagraphs: documentModel.paragraphs.length,
     averageComplexityScore: average(documentModel.words.map((word) => word.analysis.complexityScore)),
+    averageReadingPressureScore: average(documentModel.words.map(getWordChallengeScore)),
+    densityScore: average(documentModel.paragraphs.map((paragraph) => paragraph.analysis.densityScore || 0)),
   };
 
   return documentModel;
@@ -82,7 +188,8 @@ function annotateDocumentContext(documentModel) {
 
   documentModel.paragraphs.forEach((paragraph) => {
     const scoreLeadCandidate = (word) =>
-      word.analysis.complexityScore * 0.7 +
+      word.analysis.readingPressureScore * 0.68 +
+      word.analysis.lexicalRarityScore * 0.18 +
       Number(word.analysis.significantSuffixes.length > 0) * 0.22 +
       Number(word.analysis.significantSilentPatterns.length > 0) * 0.2 +
       Number(word.analysis.possibleCompoundParts.length > 1) * 0.3 +
@@ -100,7 +207,7 @@ function annotateDocumentContext(documentModel) {
 
       if (
         word.analysis.length <= 3 &&
-        word.analysis.complexityScore < 0.26 &&
+        word.analysis.readingPressureScore < 0.24 &&
         word.analysis.significantSuffixes.length === 0 &&
         word.analysis.significantSilentPatterns.length === 0
       ) {
@@ -112,7 +219,8 @@ function annotateDocumentContext(documentModel) {
         word.analysis.significantSuffixes.length > 0 ||
         word.analysis.significantSilentPatterns.length > 0 ||
         word.analysis.possibleCompoundParts.length > 1 ||
-        word.analysis.complexityScore >= 0.28 ||
+        word.analysis.readingPressureScore >= 0.3 ||
+        word.analysis.lexicalRarityScore >= 0.46 ||
         word.analysis.length >= 5
       );
     });
@@ -153,7 +261,7 @@ function annotateDocumentContext(documentModel) {
       word.analysis.wordRole === 'technical' ||
       (!word.analysis.isFunctionWord &&
         word.analysis.length >= 7 &&
-        word.analysis.complexityScore >= 0.54);
+        (word.analysis.readingPressureScore >= 0.56 || word.analysis.lexicalRarityScore >= 0.68));
     const isFirstMeaningfulOccurrence =
       occurrenceIndex === 1 &&
       (isTerminologyCandidate ||
@@ -161,7 +269,8 @@ function annotateDocumentContext(documentModel) {
         word.analysis.significantSuffixes.length > 0 ||
         word.analysis.possibleCompoundParts.length > 1 ||
         word.analysis.significantSilentPatterns.length > 0 ||
-        word.analysis.complexityScore >= 0.28);
+        word.analysis.readingPressureScore >= 0.3 ||
+        word.analysis.localReadingPressure >= 0.42);
 
     seenOccurrencesByWord.set(key, occurrenceIndex);
     word.analysis.documentContext = {

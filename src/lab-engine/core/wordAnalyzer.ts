@@ -113,6 +113,13 @@ function createAnalysis(token, languageModel, profile) {
     possibleCompoundParts,
     significantSuffixes: [],
     complexityScore: 0,
+    lexicalFamiliarityScore: 0,
+    lexicalRarityScore: 0,
+    lexicalComplexityAdjustment: 0,
+    commonalityBand: 'general',
+    lexicalSource: 'heuristic',
+    readingPressureScore: 0,
+    isChallengingWord: false,
     emphasisCandidates: [],
     recommendedEmphasisTier: 'none',
     wordRole,
@@ -150,9 +157,31 @@ function createAnalysis(token, languageModel, profile) {
 
     return normalized.length >= 7 && !analysis.isFunctionWord && !analysis.isHighFrequencyWord;
   });
+  const lexicalProfile = languageModel.methods.analyzeLexicalFamiliarity(analysis);
+  analysis.lexicalFamiliarityScore = lexicalProfile.familiarityScore;
+  analysis.lexicalRarityScore = lexicalProfile.rarityScore;
+  analysis.lexicalComplexityAdjustment = lexicalProfile.complexityAdjustment;
+  analysis.commonalityBand = lexicalProfile.commonalityBand;
+  analysis.lexicalSource = lexicalProfile.source;
   analysis.complexityScore = languageModel.methods.calculateWordComplexity(analysis, profile);
+  analysis.readingPressureScore = Math.min(
+    1,
+    Math.max(
+      0,
+      analysis.complexityScore * 0.64 +
+        analysis.lexicalRarityScore * 0.26 +
+        Number(analysis.wordRole === 'technical') * 0.12 +
+        Number(analysis.isVeryLongWord) * 0.08 -
+        Number(analysis.isFunctionWord) * 0.14 -
+        Number(analysis.isHighFrequencyWord) * 0.06,
+    ),
+  );
+  analysis.isChallengingWord =
+    analysis.readingPressureScore >= 0.52 || analysis.wordRole === 'technical';
   analysis.emphasisCandidates = buildEmphasisCandidates(analysis);
-  analysis.recommendedEmphasisTier = pickRecommendedTier(analysis.complexityScore);
+  analysis.recommendedEmphasisTier = pickRecommendedTier(
+    Math.max(analysis.complexityScore, analysis.readingPressureScore),
+  );
 
   return analysis;
 }

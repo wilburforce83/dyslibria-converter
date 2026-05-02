@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { frenchLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = frenchLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'fr',
@@ -62,8 +65,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['le', 'la', 'les', 'un', 'une', 'des', 'et', 'ou', 'mais', 'de', 'du', 'à', 'au', 'aux', 'en', 'dans', 'pour', 'sur', 'est', 'ce', 'je', 'tu', 'il', 'elle', 'on', 'nous', 'vous', 'ils'],
-  highFrequencyWords: ['avec', 'comme', 'être', 'avoir', 'plus', 'tout', 'elle', 'nous', 'vous', 'leurs', 'entre', 'aussi', 'encore', 'depuis', 'oui', "n'est"],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 8,
     veryLongWordThreshold: 13,

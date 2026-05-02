@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { danishLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = danishLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'da',
@@ -59,8 +62,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['og', 'eller', 'men', 'at', 'det', 'den', 'de', 'en', 'et', 'i', 'på', 'med', 'for', 'af', 'er', 'som', 'til', 'om', 'sig', 'vi', 'jeg', 'du', 'han', 'hun', 'ikke'],
-  highFrequencyWords: ['mellem', 'gennem', 'under', 'over', 'mange', 'andre', 'efter', 'før', 'uden', 'derfor', 'altid', 'allerede', 'bare', 'sammen', 'lige', 'hvor', 'var'],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 8,
     veryLongWordThreshold: 14,

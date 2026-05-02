@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { polishLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = polishLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'pl',
@@ -53,8 +56,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['i', 'oraz', 'ale', 'czy', 'że', 'to', 'ten', 'ta', 'te', 'w', 'na', 'z', 'do', 'po', 'za', 'jest', 'się', 'nie', 'od', 'dla', 'a', 'o', 'u', 'ja', 'ty', 'on', 'ona'],
-  highFrequencyWords: ['który', 'która', 'między', 'przez', 'wiele', 'inne', 'ponieważ', 'kiedy', 'gdzie', 'bez', 'zawsze', 'jeszcze', 'teraz', 'razem'],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 8,
     veryLongWordThreshold: 14,

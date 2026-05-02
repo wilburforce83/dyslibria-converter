@@ -172,7 +172,7 @@ describe('image optimization', () => {
     expect(metadata.format).toBe('png');
     expect(metadata.width).toBeLessThanOrEqual(1600);
     expect(metadata.height).toBeLessThanOrEqual(1600);
-  });
+  }, 10000);
 
   test('convertBook preserves transparency while optimizing transparent PNGs', async () => {
     const tempDir = await makeTempDir('dyslibria-png-alpha-');

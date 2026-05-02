@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { norwegianLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = norwegianLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'no',
@@ -56,8 +59,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['og', 'eller', 'men', 'at', 'det', 'den', 'de', 'en', 'et', 'i', 'på', 'med', 'for', 'av', 'er', 'som', 'til', 'om', 'seg', 'vi', 'jeg', 'du', 'han', 'hun', 'ikke'],
-  highFrequencyWords: ['mellom', 'gjennom', 'under', 'over', 'mange', 'andre', 'etter', 'før', 'uten', 'derfor', 'alltid', 'allerede', 'bare', 'sammen', 'hvor'],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 8,
     veryLongWordThreshold: 14,

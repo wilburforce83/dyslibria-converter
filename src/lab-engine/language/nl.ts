@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createLanguageModel } from './baseLanguageModel.js';
+import { dutchLexiconSeed } from './lexiconSeeds.js';
+
+const { functionWords, highFrequencyWords, lexicon } = dutchLexiconSeed;
 
 export const languageModel = createLanguageModel({
   code: 'nl',
@@ -53,8 +56,9 @@ export const languageModel = createLanguageModel({
     enableFunctionWordSuppression: true,
     enableSentencePositionBias: true,
   },
-  functionWords: ['de', 'het', 'een', 'en', 'of', 'maar', 'van', 'in', 'op', 'met', 'voor', 'aan', 'is', 'dat', 'die', 'dit', 'te', 'als', 'bij', 'om', 'ik', 'jij', 'hij', 'zij', 'wij'],
-  highFrequencyWords: ['zoals', 'daarom', 'tussen', 'worden', 'hebben', 'kunnen', 'mensen', 'andere', 'tegen', 'zonder', 'altijd', 'reeds', 'weer', 'alleen', 'zal', 'moet', 'niet', 'want'],
+  functionWords,
+  highFrequencyWords,
+  lexicon,
   weights: {
     longWordThreshold: 8,
     veryLongWordThreshold: 14,

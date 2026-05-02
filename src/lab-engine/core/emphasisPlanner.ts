@@ -84,8 +84,14 @@ function canSelectWord(word, selectedWords, profile, options = {}) {
   });
 }
 
+function getWordDifficultyScore(word) {
+  return Math.max(word.analysis.readingPressureScore || 0, word.analysis.complexityScore || 0);
+}
+
 function calculateWordScore(word, sentence, profile) {
   const context = word.analysis.documentContext || {};
+  const difficultyScore = getWordDifficultyScore(word);
+  const localPressure = word.analysis.localReadingPressure || 0;
   const progress =
     sentence.analysis.wordCount > 1
       ? word.positionInSentence / (sentence.analysis.wordCount - 1)
@@ -95,7 +101,7 @@ function calculateWordScore(word, sentence, profile) {
     !word.analysis.isFunctionWord &&
     !word.analysis.isHighFrequencyWord &&
     (word.analysis.length >= 4 ||
-      word.analysis.complexityScore >= 0.28 ||
+      difficultyScore >= 0.28 ||
       word.analysis.wordRole === 'technical');
   const structureBonus =
     Number(profile.structuralAwareness.sentenceStarts && qualifiesAsSentenceStartAnchor) * 0.14 +
@@ -107,14 +113,15 @@ function calculateWordScore(word, sentence, profile) {
     Number(context.isFirstMeaningfulOccurrence) * 0.16;
   const needAdjustments =
     Number(profile.readingNeeds.dyslexiaSupport && word.analysis.isLongWord) * 0.12 +
-    Number(profile.readingNeeds.dyslexiaSupport && word.analysis.complexityScore >= 0.44) * 0.1 +
+    Number(profile.readingNeeds.dyslexiaSupport && difficultyScore >= 0.44) * 0.1 +
     Number(profile.readingNeeds.adhdFocusSupport && word.positionInSentence < 2) * 0.16 +
-    Number(profile.readingNeeds.longTextFatigueSupport && sentence.analysis.isLong) * 0.12 -
+    Number(profile.readingNeeds.longTextFatigueSupport && sentence.analysis.isDense) * 0.12 +
+    Number(sentence.analysis.isDense && (difficultyScore >= 0.42 || context.isFirstMeaningfulOccurrence)) * 0.08 -
     Number(profile.readingNeeds.fictionComfortMode && word.analysis.isHighFrequencyWord) * 0.06 -
     Number(profile.readingNeeds.lowVisualNoiseMode && word.analysis.isFunctionWord) * 0.14 -
-    Number(profile.readingNeeds.lowVisualNoiseMode && sentence.analysis.isSimple && word.analysis.complexityScore < 0.34) * 0.08 -
+    Number(profile.readingNeeds.lowVisualNoiseMode && sentence.analysis.isSimple && difficultyScore < 0.34) * 0.08 -
     Number(profile.readingNeeds.lowVisualNoiseMode && context.isRepeatedEasyWord) * 0.12;
-  const complexityBias = word.analysis.complexityScore * 0.72;
+  const complexityBias = difficultyScore * 0.6 + localPressure * 0.12 + sentence.analysis.densityScore * 0.08;
   const distributionBias = getDistributionBias(progress, profile.attentionMapping.anchorDistribution) * 0.08;
   const decayMultiplier = 1 - profile.flowControl.decayFactorAcrossSentence * progress;
   const repetitionPenalty =
@@ -123,7 +130,7 @@ function calculateWordScore(word, sentence, profile) {
     Number(!context.isFirstOccurrence && context.totalOccurrences >= 3 && !context.isTerminologyCandidate) * 0.08 +
     Number(
       word.analysis.length <= 3 &&
-        word.analysis.complexityScore < 0.26 &&
+        difficultyScore < 0.24 &&
         !context.isTerminologyCandidate &&
         !context.isParagraphLeadCandidate,
     ) *
@@ -140,8 +147,9 @@ function calculateWordScore(word, sentence, profile) {
 function buildSelectionReasons(word, sentence, profile) {
   const reasons = [];
   const context = word.analysis.documentContext || {};
+  const difficultyScore = getWordDifficultyScore(word);
 
-  if (word.analysis.complexityScore >= 0.58) {
+  if (difficultyScore >= 0.58) {
     reasons.push('trickier word shape');
   }
 
@@ -161,9 +169,13 @@ function buildSelectionReasons(word, sentence, profile) {
     reasons.push('first mention');
   }
 
+  if (word.analysis.lexicalRarityScore >= 0.62 && word.analysis.wordRole !== 'technical') {
+    reasons.push('uncommon word');
+  }
+
   if (
     profile.readingNeeds.dyslexiaSupport &&
-    (word.analysis.isLongWord || word.analysis.complexityScore >= 0.48)
+    (word.analysis.isLongWord || difficultyScore >= 0.48)
   ) {
     reasons.push('crowding relief');
   }
@@ -172,8 +184,8 @@ function buildSelectionReasons(word, sentence, profile) {
     reasons.push('early-line focus');
   }
 
-  if (profile.readingNeeds.longTextFatigueSupport && sentence.analysis.isLong) {
-    reasons.push('long-passage support');
+  if (profile.readingNeeds.longTextFatigueSupport && sentence.analysis.isDense) {
+    reasons.push('dense-passage support');
   }
 
   if (
@@ -182,7 +194,7 @@ function buildSelectionReasons(word, sentence, profile) {
     !word.analysis.isFunctionWord &&
     !word.analysis.isHighFrequencyWord &&
     (word.analysis.length >= 4 ||
-      word.analysis.complexityScore >= 0.28 ||
+      difficultyScore >= 0.28 ||
       word.analysis.wordRole === 'technical')
   ) {
     reasons.push('start of sentence');
@@ -196,8 +208,12 @@ function buildSelectionReasons(word, sentence, profile) {
     reasons.push('paragraph lead');
   }
 
-  if (sentence.analysis.isLong) {
-    reasons.push('dense sentence');
+  if (sentence.analysis.isDense) {
+    reasons.push('dense passage');
+  }
+
+  if (word.analysis.localReadingPressure >= 0.54) {
+    reasons.push('clustered difficult words');
   }
 
   if (profile.languageAware.enableSuffixHighlighting && word.analysis.significantSuffixes.length) {
@@ -249,7 +265,7 @@ function resolveAnchorRenderMode(word, profile) {
     word.analysis.possibleCompoundParts.length > 1 ||
     word.analysis.significantSuffixes.length > 0 ||
     (profile.languageAware.enableClusterHighlighting && word.analysis.detectedClusters.length > 1) ||
-    word.analysis.complexityScore >= 0.72
+    getWordDifficultyScore(word) >= 0.72
     ? 'zones'
     : 'wholeWord';
 }
@@ -346,7 +362,7 @@ function isEligibleFrontLoadWord(word, profile) {
     case 'longWordsOnly':
       return word.analysis.isLongWord;
     case 'complexWordsOnly':
-      return word.analysis.complexityScore >= 0.46;
+      return getWordDifficultyScore(word) >= 0.46;
     case 'everyNthWord':
       return true;
     case 'contentWordsOnly':
@@ -367,7 +383,7 @@ function activateFrontLoadWord(word, profile) {
   word.engine.frontLoad = {
     isActive: true,
     prefixLength,
-    remainderTier: word.analysis.complexityScore >= 0.62 ? 'secondary' : null,
+    remainderTier: getWordDifficultyScore(word) >= 0.62 ? 'secondary' : null,
     strategy: profile.frontLoad.frontLoadStrategy,
   };
   word.engine.selectionReasons = [...new Set([...(word.engine.selectionReasons || []), 'front-load emphasis'])];
@@ -431,7 +447,7 @@ function assignDesiredSentenceCount(sentence, profile) {
   const hasSubstantiveCandidate = sentence.words.some(
     (word) =>
       word.analysis.documentContext?.isFirstMeaningfulOccurrence ||
-      word.analysis.complexityScore >= 0.14 ||
+      getWordDifficultyScore(word) >= 0.14 ||
       word.analysis.isLongWord ||
       word.analysis.possibleCompoundParts.length > 1,
   );
@@ -448,7 +464,11 @@ function assignDesiredSentenceCount(sentence, profile) {
     desiredCount = Math.max(desiredCount, 1);
   }
 
-  if (sentence.analysis.isLong) {
+  if (sentence.analysis.isDense) {
+    desiredCount += 1;
+  }
+
+  if (sentence.analysis.isVeryDense) {
     desiredCount += 1;
   }
 
@@ -456,7 +476,10 @@ function assignDesiredSentenceCount(sentence, profile) {
     desiredCount -= 1;
   }
 
-  if (profile.readingNeeds.technicalReadingSupport && sentence.analysis.averageComplexity >= 0.42) {
+  if (
+    profile.readingNeeds.technicalReadingSupport &&
+    Math.max(sentence.analysis.averageComplexity, sentence.analysis.averageReadingPressure) >= 0.42
+  ) {
     desiredCount += 1;
   }
 
@@ -489,7 +512,7 @@ function rebalanceParagraphBudget(sentencePlans, paragraphWordCount, profile) {
       return Number(right.sentence.analysis.isSimple) - Number(left.sentence.analysis.isSimple);
     }
 
-    return left.sentence.analysis.averageComplexity - right.sentence.analysis.averageComplexity;
+    return left.sentence.analysis.densityScore - right.sentence.analysis.densityScore;
   });
 
   while (allocatedCount > paragraphBudget) {
@@ -534,7 +557,7 @@ function ensureSubstantiveAnchorCoverage(sentence, candidateWords, selectedWords
         (word) =>
           !word.engine.isAnchor &&
           (word.analysis.documentContext?.isFirstMeaningfulOccurrence ||
-            word.analysis.complexityScore >= 0.14 ||
+            getWordDifficultyScore(word) >= 0.14 ||
             word.analysis.isLongWord ||
             word.analysis.possibleCompoundParts.length > 1),
       )
@@ -552,8 +575,8 @@ function ensureSubstantiveAnchorCoverage(sentence, candidateWords, selectedWords
       )
       .find(
         ({ candidate, replaceableWord, remainingSelectedWords }) =>
-          candidate.engine.baseScore >= replaceableWord.engine.baseScore + 0.08 &&
-          canSelectWord(candidate, remainingSelectedWords, profile),
+        candidate.engine.baseScore >= replaceableWord.engine.baseScore + 0.08 &&
+        canSelectWord(candidate, remainingSelectedWords, profile),
       );
 
     if (!replacementPair) {
@@ -698,11 +721,11 @@ function selectFrontLoadWords(sentence, frontLoadCount, profile) {
       .sort((left, right) => {
         const leftScore =
           left.engine.baseScore +
-          left.analysis.complexityScore * 0.28 -
+          getWordDifficultyScore(left) * 0.28 -
           Math.abs(left.positionInSentence - targetPosition) * 0.06;
         const rightScore =
           right.engine.baseScore +
-          right.analysis.complexityScore * 0.28 -
+          getWordDifficultyScore(right) * 0.28 -
           Math.abs(right.positionInSentence - targetPosition) * 0.06;
 
         return rightScore - leftScore;
