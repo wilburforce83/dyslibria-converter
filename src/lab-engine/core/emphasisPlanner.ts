@@ -39,6 +39,10 @@ function createTargetPositions(wordCount, emphasisCount, distribution) {
   });
 }
 
+const GAP_FILL_TARGET_DISTANCE = 15;
+const GAP_FILL_DISTANCE_TOLERANCE = 3;
+const GAP_FILL_MAX_DISTANCE = GAP_FILL_TARGET_DISTANCE + GAP_FILL_DISTANCE_TOLERANCE;
+
 function getMaxConsecutiveRun(positions) {
   const sortedPositions = [...positions].sort((left, right) => left - right);
   let maxRun = 0;
@@ -544,6 +548,150 @@ function activateAnchorWord(word, sentence, profile, languageModel, selectedWord
   word.engine.candidateZones = pickPrimaryZones(word, sentence, profile, languageModel);
 }
 
+function getGapCoverageThreshold(sentence, profile) {
+  if (!profile.readingNeeds.longTextFatigueSupport) {
+    return 0;
+  }
+
+  const minimumSentenceLength = Math.max(
+    profile.cognitiveLoad.longSentenceThreshold || 0,
+    GAP_FILL_MAX_DISTANCE + 1,
+  );
+
+  if (sentence.analysis.wordCount < minimumSentenceLength) {
+    return 0;
+  }
+
+  if (sentence.analysis.isVeryDense) {
+    return Math.max(15, GAP_FILL_MAX_DISTANCE - 1);
+  }
+
+  return GAP_FILL_MAX_DISTANCE;
+}
+
+function isGapFillCandidate(word, profile) {
+  if (word.engine.isAnchor || word.analysis.length <= 1) {
+    return false;
+  }
+
+  if (!word.analysis.isFunctionWord) {
+    return true;
+  }
+
+  return (
+    word.analysis.length >= Math.max(4, profile.attentionMapping.anchorWordMinimumLength - 1) ||
+    getWordDifficultyScore(word) >= 0.42 ||
+    word.analysis.documentContext?.isFirstMeaningfulOccurrence
+  );
+}
+
+function calculateGapFillScore(word, targetPosition) {
+  const context = word.analysis.documentContext || {};
+  const distancePenalty = Math.abs(word.positionInSentence - targetPosition) * 0.08;
+
+  return (
+    (word.engine.baseScore || 0) +
+    getWordDifficultyScore(word) * 0.32 +
+    (word.analysis.length || 0) * 0.038 +
+    Number(!word.analysis.isFunctionWord) * 0.12 +
+    Number(word.afterClauseBoundary) * 0.1 +
+    Number(context.isFirstMeaningfulOccurrence) * 0.14 +
+    Number(context.isTerminologyCandidate) * 0.12 -
+    distancePenalty
+  );
+}
+
+function findGapFillCandidate(sentence, selectedWords, profile, gapStart, gapEnd, targetPosition) {
+  const windowStart = Math.max(gapStart + 1, targetPosition - GAP_FILL_DISTANCE_TOLERANCE);
+  const windowEnd = Math.min(gapEnd - 1, targetPosition + GAP_FILL_DISTANCE_TOLERANCE);
+  const candidatePool = sentence.words.filter(
+    (word) =>
+      word.positionInSentence > gapStart &&
+      word.positionInSentence < gapEnd &&
+      canSelectWord(word, selectedWords, profile) &&
+      isGapFillCandidate(word, profile),
+  );
+  const preferredPool = candidatePool.filter(
+    (word) => word.positionInSentence >= windowStart && word.positionInSentence <= windowEnd,
+  );
+  const relaxedPool = sentence.words.filter(
+    (word) =>
+      word.positionInSentence > gapStart &&
+      word.positionInSentence < gapEnd &&
+      canSelectWord(word, selectedWords, profile) &&
+      word.analysis.length > 1,
+  );
+  const selectionPool = preferredPool.length
+    ? preferredPool
+    : candidatePool.length
+      ? candidatePool
+      : relaxedPool.filter(
+          (word) => word.positionInSentence >= windowStart && word.positionInSentence <= windowEnd,
+        ).length
+        ? relaxedPool.filter(
+            (word) => word.positionInSentence >= windowStart && word.positionInSentence <= windowEnd,
+          )
+        : relaxedPool;
+
+  return [...selectionPool].sort(
+    (left, right) => calculateGapFillScore(right, targetPosition) - calculateGapFillScore(left, targetPosition),
+  )[0];
+}
+
+function ensureAnchorGapCoverage(sentence, selectedWords, profile, languageModel) {
+  const maxGap = getGapCoverageThreshold(sentence, profile);
+
+  if (!maxGap) {
+    return;
+  }
+
+  const maximumAdditionalAnchors = Math.max(
+    1,
+    Math.ceil(sentence.analysis.wordCount / Math.max(GAP_FILL_TARGET_DISTANCE - 2, 1)),
+  );
+  let additions = 0;
+
+  while (additions < maximumAdditionalAnchors) {
+    const positions = [-1, ...selectedWords.map((word) => word.positionInSentence).sort((left, right) => left - right), sentence.analysis.wordCount];
+    const widestGap = positions
+      .slice(0, -1)
+      .map((gapStart, index) => ({
+        gapStart,
+        gapEnd: positions[index + 1],
+        gapSize: positions[index + 1] - gapStart - 1,
+      }))
+      .filter((gap) => gap.gapSize > maxGap)
+      .sort((left, right) => right.gapSize - left.gapSize)[0];
+
+    if (!widestGap) {
+      return;
+    }
+
+    const targetPosition = Math.min(
+      widestGap.gapEnd - 1,
+      widestGap.gapStart + GAP_FILL_TARGET_DISTANCE,
+    );
+    const candidate = findGapFillCandidate(
+      sentence,
+      selectedWords,
+      profile,
+      widestGap.gapStart,
+      widestGap.gapEnd,
+      targetPosition,
+    );
+
+    if (!candidate) {
+      return;
+    }
+
+    activateAnchorWord(candidate, sentence, profile, languageModel, selectedWords);
+    candidate.engine.selectionReasons = [
+      ...new Set([...(candidate.engine.selectionReasons || []), 'gap coverage support']),
+    ];
+    additions += 1;
+  }
+}
+
 function ensureSubstantiveAnchorCoverage(sentence, candidateWords, selectedWords, profile, languageModel) {
   if (selectedWords.length < 2 || sentence.analysis.wordCount < 12) {
     return;
@@ -663,6 +811,7 @@ function selectAnchorWords(sentence, anchorCount, profile, languageModel) {
   });
 
   ensureSubstantiveAnchorCoverage(sentence, candidateWords, selectedWords, profile, languageModel);
+  ensureAnchorGapCoverage(sentence, selectedWords, profile, languageModel);
 
   assignTierToSelectedWords(selectedWords, sentence, profile);
 
