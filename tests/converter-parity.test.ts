@@ -139,7 +139,32 @@ describe('converter parity', () => {
     expect(content).toContain('fragment');
   });
 
-  test('processHtmlFiles preserves class-based color spans while styling across inline fragments', async () => {
+  test('processHtmlFiles preserves empty anchors without serializing them as self-closing tags', async () => {
+    const tempDir = await makeTempDir('dyslibria-empty-anchor-');
+    const filePath = path.join(tempDir, 'empty-anchor.xhtml');
+
+    await fs.writeFile(
+      filePath,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <body>
+    <p>Before <a></a>after and <a id="marker"></a>again.</p>
+  </body>
+</html>`
+    );
+
+    const result = await processHtmlFiles(tempDir, new Set());
+    const content = await fs.readFile(filePath, 'utf-8');
+
+    expect(result.processedFiles).toBe(1);
+    expect(result.errors).toEqual([]);
+    expect(content).not.toMatch(/<a\b[^>]*\/>/i);
+    expect(content).toContain('<a></a>');
+    expect(content).toContain('<a id="marker"></a>');
+    expect(content).toContain('dyslibria-word');
+  });
+
+  test('processHtmlFiles neutralizes class-based color spans while styling across inline fragments', async () => {
     const tempDir = await makeTempDir('dyslibria-inline-color-');
     const filePath = path.join(tempDir, 'inline-color.xhtml');
 
@@ -170,14 +195,22 @@ describe('converter parity', () => {
 
     expect(result.processedFiles).toBe(1);
     expect(result.errors).toEqual([]);
-    expect(content).toContain('.blue { color: #0066cc; }');
+    expect(content).not.toContain('color: #0066cc');
+    expect(content).not.toContain('color: #cc3300');
     expect(content).toMatch(
       /<span class="blue"><span class="dyslibria-word [^>]*dyslibria-word--emphasised[^>]*>Extra<\/span><\/span><span class="red"><span class="dyslibria-word [^>]*dyslibria-word--emphasised[^>]*>ordinary<\/span><\/span>/
     );
+    expect(
+      (
+        result.metricsReport.files[0]?.debugData?.sourceStyleSanitization as {
+          presentationDeclarationsRemoved?: number;
+        }
+      )?.presentationDeclarationsRemoved
+    ).toBe(2);
     expect(result.metricsReport.files[0]?.metrics?.anchorCount).toBeGreaterThan(0);
   });
 
-  test('processHtmlFiles strips conflicting text !important rules from inline styles and style blocks', async () => {
+  test('processHtmlFiles strips source color/background rules, stale !important text rules, and HTML colour attributes', async () => {
     const tempDir = await makeTempDir('dyslibria-style-sanitize-');
     const filePath = path.join(tempDir, 'important-styles.xhtml');
 
@@ -187,13 +220,13 @@ describe('converter parity', () => {
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <style>
-      body { line-height: 1.05 !important; }
-      p.note { font: italic 1em/1.1 Georgia !important; }
+      body { line-height: 1.05 !important; background-color: #fff; }
+      p.note { font: italic 1em/1.1 Georgia !important; color: #c00 !important; }
       img.hero { display: block !important; }
     </style>
   </head>
-  <body>
-    <p class="note" style="line-height: 1 !important; color: #c00 !important;">Source styling should be sanitized.</p>
+  <body bgcolor="#fff" text="#111111">
+    <p class="note" style="line-height: 1 !important; color: #c00 !important; background: #fff;">Source styling should be sanitized.</p>
   </body>
 </html>`
     );
@@ -211,9 +244,89 @@ describe('converter parity', () => {
     expect(content).toContain('body { line-height: 1.05; }');
     expect(content).toContain('p.note { font: italic 1em/1.1 Georgia; }');
     expect(content).toContain('img.hero { display: block !important; }');
-    expect(content).toContain('style="line-height: 1; color: #c00 !important;"');
+    expect(content).toContain('style="line-height: 1;"');
+    expect(content).not.toContain('color: #c00');
+    expect(content).not.toContain('background: #fff');
+    expect(content).not.toContain('background-color: #fff');
+    expect(content).not.toContain('bgcolor=');
+    expect(content).not.toContain('text=');
     expect(fileMetrics?.warnings.some((warning) => warning.title === 'Source text style overrides sanitized')).toBe(true);
-    expect((fileMetrics?.debugData?.sourceStyleSanitization as { declarationsSanitized?: number })?.declarationsSanitized).toBe(3);
+    expect(
+      (
+        fileMetrics?.debugData?.sourceStyleSanitization as {
+          declarationsSanitized?: number;
+          importanceDirectivesRemoved?: number;
+          presentationDeclarationsRemoved?: number;
+          presentationalAttributesRemoved?: number;
+        }
+      )?.declarationsSanitized
+    ).toBe(7);
+    expect(
+      (
+        fileMetrics?.debugData?.sourceStyleSanitization as {
+          importanceDirectivesRemoved?: number;
+        }
+      )?.importanceDirectivesRemoved
+    ).toBe(3);
+    expect(
+      (
+        fileMetrics?.debugData?.sourceStyleSanitization as {
+          presentationDeclarationsRemoved?: number;
+        }
+      )?.presentationDeclarationsRemoved
+    ).toBe(4);
+    expect(
+      (
+        fileMetrics?.debugData?.sourceStyleSanitization as {
+          presentationalAttributesRemoved?: number;
+        }
+      )?.presentationalAttributesRemoved
+    ).toBe(2);
+  });
+
+  test('processHtmlFiles strips source color and background rules from linked stylesheet files', async () => {
+    const tempDir = await makeTempDir('dyslibria-linked-style-sanitize-');
+    const stylesDir = path.join(tempDir, 'styles');
+    const filePath = path.join(tempDir, 'chapter.xhtml');
+    const cssPath = path.join(stylesDir, 'book.css');
+    const logger = vi.fn();
+
+    await fs.ensureDir(stylesDir);
+    await fs.writeFile(
+      filePath,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <link rel="stylesheet" type="text/css" href="styles/book.css"/>
+  </head>
+  <body>
+    <p class="note">Linked stylesheet text should still convert cleanly.</p>
+  </body>
+</html>`
+    );
+    await fs.writeFile(
+      cssPath,
+      `body { color: #111111; background: #fef1e7; }
+p.note { line-height: 1.1 !important; }
+a { text-decoration: underline; }`
+    );
+
+    const result = await processHtmlFiles(tempDir, { logger });
+    const css = await fs.readFile(cssPath, 'utf-8');
+
+    expect(result.processedFiles).toBe(1);
+    expect(result.errors).toEqual([]);
+    expect(css).not.toContain('color: #111111');
+    expect(css).not.toContain('background: #fef1e7');
+    expect(css).toContain('p.note { line-height: 1.1; }');
+    expect(css).toContain('a { text-decoration: underline; }');
+    expect(logger).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'info',
+        step: 'transform',
+        message: 'Sanitized source presentation rules in source EPUB stylesheets'
+      })
+    );
   });
 
   test('processHtmlFiles force-applies relaxed line spacing for EPUB output when above baseline', async () => {

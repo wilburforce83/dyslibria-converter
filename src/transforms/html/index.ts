@@ -9,7 +9,10 @@ import type {
   ProfileInput
 } from '../../types/api';
 import { processDocument } from './process-document';
-import { sanitizeStylesheetFiles } from '../styles/sanitize-source-styles';
+import {
+  describeSourceStyleSanitization,
+  sanitizeStylesheetFiles
+} from '../styles/sanitize-source-styles';
 
 export interface HtmlProcessingError {
   filePath: string;
@@ -188,10 +191,13 @@ export async function processHtmlFiles(
     options.logger?.({
       level: 'info',
       step: 'transform',
-      message: 'Sanitized conflicting text !important rules in source EPUB stylesheets',
+      message: 'Sanitized source presentation rules in source EPUB stylesheets',
       details: {
         stylesheetFilesUpdated: stylesheetSanitization.stylesheetFilesUpdated,
-        declarationsSanitized: stylesheetSanitization.declarationsSanitized
+        declarationsSanitized: stylesheetSanitization.declarationsSanitized,
+        importanceDirectivesRemoved: stylesheetSanitization.importanceDirectivesRemoved,
+        presentationDeclarationsRemoved: stylesheetSanitization.presentationDeclarationsRemoved,
+        summary: describeSourceStyleSanitization(stylesheetSanitization)
       }
     });
   }

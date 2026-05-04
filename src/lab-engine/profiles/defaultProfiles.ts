@@ -42,7 +42,7 @@ export const DEFAULT_PROFILES = [
   buildProfile(
     'intense-scaffolding',
     'Dyslibria Default',
-    'Default Dyslibria reading profile with strong front-loaded scaffolding and structural guidance.',
+    'Default Dyslibria reading profile with whole-word, language-aware support, stronger structural guidance, and a focus-first reading rhythm.',
     {
       emphasisDensity: 0.26,
       maxEmphasisPerSentence: 5,

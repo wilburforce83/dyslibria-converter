@@ -12,6 +12,8 @@ import type { ResolvedProfile } from '../../config/profile';
 import { escapeXmlTextContent } from '../text/entities';
 import { cleanHtml } from './clean';
 import {
+  describeSourceStyleSanitization,
+  hasSourceStyleSanitizationChanges,
   sanitizeDocumentSourceStyles,
   toSourceStyleSanitizationDebugData
 } from '../styles/sanitize-source-styles';
@@ -555,6 +557,12 @@ function normalizeDocumentRootPresentation($: CheerioAPI): void {
   });
 }
 
+function expandSerializedAnchorTags(content: string): string {
+  return content.replace(/<a(\s[^<>]*?)?\/>/gi, (_match, attributes: string | undefined) => {
+    return `<a${attributes || ''}></a>`;
+  });
+}
+
 export async function processDocument(
   filePath: string,
   rootDir: string,
@@ -591,15 +599,15 @@ export async function processDocument(
   injectActiveCss($, engineResult.css.active || '');
   cleanHtml($);
 
-  const outputContent = $.xml();
+  const outputContent = expandSerializedAnchorTags($.xml());
   await fs.writeFile(filePath, outputContent, 'utf-8');
   const warnings = [...engineResult.warnings];
 
-  if (sourceStyleSanitization.declarationsSanitized > 0) {
+  if (hasSourceStyleSanitizationChanges(sourceStyleSanitization)) {
     warnings.push({
       level: 'info',
       title: 'Source text style overrides sanitized',
-      message: `Removed !important from ${sourceStyleSanitization.declarationsSanitized} source line-height/font declaration${sourceStyleSanitization.declarationsSanitized === 1 ? '' : 's'} to reduce spacing conflicts.`
+      message: `Removed ${describeSourceStyleSanitization(sourceStyleSanitization)} so source EPUB presentation does not override Dyslibria styling or reader themes.`
     });
   }
 
